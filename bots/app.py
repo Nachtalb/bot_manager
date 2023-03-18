@@ -108,8 +108,10 @@ async def list_logs(since: int = 0):
 @app.get("/reload_config")
 @log()
 async def reload_config():
+    active = [id for id, app in applications.items() if app.running]
     await destroy_all_applications()
     await load_applications()
+    asyncio.gather(*[app.start_application() for id, app in applications.items() if id in active])
     return {"status": "success"}
 
 
