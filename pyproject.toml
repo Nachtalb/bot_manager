@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "bot_manager"
+version = "0.1.0"
+description = ""
+authors = ["Nachtalb <na@nachtalb.io>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11.0, <3.12.0"
+python-telegram-bot = {extras = ["job-queue"], version = "^20.1"}
+openai = "^0.27.2"
+markdown-it-py = "^2.2.0"
+edgegpt = "^0.0.60"
+aiohttp = {extras = ["speedups"], version = "^3.8.4"}
+fastapi = "^0.94.1"
+uvicorn = "^0.21.1"
+
+[tool.poetry.group.dev.dependencies]
+ipdb = "^0.13.13"
+ipython = {extras = ["black"], version = "^8.11.0"}
+
+[tool.poetry.scripts]
+start-bots = "bots.__main__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+preview = true
