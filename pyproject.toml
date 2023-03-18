@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Nachtalb <na@nachtalb.io>"]
 readme = "README.md"
+packages = [{include = "bots"}]
 
 [tool.poetry.dependencies]
 python = "^3.11.0, <3.12.0"
