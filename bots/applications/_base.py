@@ -28,14 +28,14 @@ class ApplicationWrapper:
         """Run before the manager is stopped (eg. due to a config reload or CTRL-C)"""
         pass
 
-    async def start(self):
+    async def start_application(self):
         await self.application.initialize()
         await self.application.start()
         await self.application.updater.start_polling()
         self.running = True
         return self
 
-    async def stop(self):
+    async def stop_application(self):
         if self.running:
             await self.shutdown()
             await self.application.updater.stop()

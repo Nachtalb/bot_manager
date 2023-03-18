@@ -89,7 +89,7 @@ async def on_shutdown():
 @app.on_event("startup")
 async def on_startup():
     await load_applications()
-    for task in asyncio.as_completed([app.start() for app in applications.values() if app.auto_start]):
+    for task in asyncio.as_completed([app.start_application() for app in applications.values() if app.auto_start]):
         app = await task
         entry = LogEntry(text=f"{app.name} auto started", status="success", timestamp=int(time.time()))
         logger.info(entry["text"])
@@ -132,7 +132,7 @@ async def stop_all():
 async def start_app(app_id: str):
     try:
         app = applications[app_id]
-        await app.start()
+        await app.start_application()
         return {"status": "success", "message": f"Started app with ID {app_id}"}
     except IndexError:
         return {"status": "error", "message": f"No app found with ID {app_id}"}
@@ -143,7 +143,7 @@ async def start_app(app_id: str):
 async def stop_app(app_id: str):
     try:
         app = applications[app_id]
-        await app.stop()
+        await app.stop_application()
         return {"status": "success", "message": f"Stopped app with ID {app_id}"}
     except IndexError:
         return {"status": "error", "message": f"No app found with ID {app_id}"}

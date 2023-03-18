@@ -30,11 +30,11 @@ async def load_applications():
 
 
 async def start_all():
-    asyncio.gather(*[app.start() for app in applications.values()])
+    asyncio.gather(*[app.start_application() for app in applications.values()])
 
 
 async def stop_all():
-    asyncio.gather(*[app.stop() for app in applications.values()])
+    asyncio.gather(*[app.stop_application() for app in applications.values()])
 
 
 async def destroy_all():
