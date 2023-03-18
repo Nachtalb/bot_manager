@@ -11,12 +11,14 @@ Clone the repo to your host then. Install it via poetry and run `start-bots`:
 git clone https://github.com/Nachtalb/bot_manager
 cd bot_manager
 poetry install
-echo '{
-  "id": "echo",
-  "module_name": "echo",
-  "telegram_token": "some token",
-  "auto_start": true,
-}' > config.json
+echo '[
+  {
+    "id": "echo",
+    "module_name": "echo",
+    "telegram_token": "some token",
+    "auto_start": true,
+  }
+]' > config.json
 poetry run start-bots
 ```
 
