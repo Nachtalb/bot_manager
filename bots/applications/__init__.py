@@ -17,15 +17,16 @@ async def load_applications():
         telegram_token = config["telegram_token"]
         _id = config["id"]
         auto_start = config.get("auto_start", False)
+        kwargs = config.get("arguments", {})
 
         if _id in applications:
             raise ValueError("Duplicate bot ID")
 
         app_module = importlib.import_module(f"bots.applications.{module_name}")
         app_class: Type[ApplicationWrapper] = getattr(app_module, "Application")
-        app_instance = app_class(telegram_token, _id, auto_start)
+        app_instance = app_class(telegram_token, _id, auto_start, kwargs)
         applications[app_instance.id] = app_instance
-    asyncio.gather(*[app.setup() for app in applications.values()])
+    asyncio.gather(*[app.setup(**app.setup_args) for app in applications.values()])
 
 
 async def start_all():

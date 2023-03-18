@@ -17,6 +17,9 @@ echo '[
     "module_name": "echo",
     "telegram_token": "some token",
     "auto_start": true,
+    "arguments": {
+      "foo": "bar"
+    }
   }
 ]' > config.json
 poetry run start-bots
@@ -34,7 +37,8 @@ application has been started you can also use `async startup`, `async shutdown`
 and `teardown` which are run after the bot has been started, before it's
 stopped and before the whole manager is stopped (eg. when using CTRL-C).
 
-Last but not least add an entry in the `config.json`.
+Last but not least add an entry in the `config.json`. Whereas the arguments and
+the auto_start are optional. Auto start is by default off.
 
 ## Usage
 

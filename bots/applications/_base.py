@@ -2,11 +2,12 @@ from telegram.ext import ApplicationBuilder
 
 
 class ApplicationWrapper:
-    def __init__(self, telegram_token: str, _id: str, auto_start: bool = False):
+    def __init__(self, telegram_token: str, _id: str, auto_start: bool = False, setup_args: dict = {}):
         self.telegram_token = telegram_token
         self.id = _id
         self.name = f"{self.__class__.__name__}-{self.id}"
         self.auto_start = auto_start
+        self.setup_args = setup_args
 
         self.application = ApplicationBuilder().token(telegram_token).build()
         self.running: bool = False
