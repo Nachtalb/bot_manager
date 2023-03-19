@@ -68,6 +68,7 @@ class ApplicationWrapper:
         await self.application.updater.start_polling()
         self.logger.info("Started")
         self.running = True
+        await self.startup()
         return self
 
     async def stop_application(self):

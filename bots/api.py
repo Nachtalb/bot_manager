@@ -1,10 +1,11 @@
 import asyncio
+from importlib import reload
 import os
 import signal
 
 from fastapi import APIRouter
 
-from bots.applications import applications, destroy
+from bots.applications import applications, destroy, _base
 from bots.applications import destroy_all as destroy_all_applications
 from bots.applications import load_applications
 from bots.applications import start_all as start_all_applications
@@ -34,6 +35,7 @@ async def list_logs(since: int = 0):
 async def reload_config():
     active = [id for id, app in applications.items() if app.running]
     await destroy_all_applications()
+    reload(_base)
     await load_applications()
     asyncio.gather(*[app.start_application() for id, app in applications.items() if id in active])
     return {"status": "success"}
