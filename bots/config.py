@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, BaseSettings
+from pydantic import BaseModel
 import logging
 
 
@@ -12,7 +12,7 @@ class ApplicationConfig(BaseModel):
     arguments: dict[str, Any] = {}
 
 
-class Config(BaseSettings):
+class Config(BaseModel):
     app_configs: list[ApplicationConfig]
 
     host: str = "0.0.0.0"
@@ -21,12 +21,9 @@ class Config(BaseSettings):
 
     uvicorn_args: dict[str, Any] = {}
 
-    class Config:
-        env_file = "config.json"
-
     @property
     def log_level_int(self):
         return logging._nameToLevel[self.log_level.upper()]
 
 
-config = Config()  # pyright: ignore[reportGeneralTypeIssues]
+config = Config.parse_file("config.json")
