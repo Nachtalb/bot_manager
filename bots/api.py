@@ -9,7 +9,7 @@ from bots.applications import destroy_all as destroy_all_applications
 from bots.applications import load_applications
 from bots.applications import start_all as start_all_applications
 from bots.applications import stop_all as stop_all_applications
-from bots.log import log, logs
+from bots.log import log, runtime_logs
 
 router = APIRouter()
 
@@ -22,9 +22,9 @@ async def shutdown_server():
 
 @router.get("/logs")
 async def list_logs(since: int = 0):
-    filtered_logs = logs
+    filtered_logs = runtime_logs
     if since:
-        filtered_logs = tuple(entry for entry in logs if entry["timestamp"] >= since)
+        filtered_logs = tuple(entry for entry in runtime_logs if entry["timestamp"] >= since)
 
     return {"status": "success", "logs": filtered_logs}
 
