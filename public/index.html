@@ -5,12 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Telegram Bots Manager</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-      }
-
-      button {
-        cursor: pointer;
+      #log-history-entries {
+        max-height: 300px;
       }
 
       .log-entry {
@@ -36,32 +32,78 @@
         text-shadow: none;
       }
     </style>
+
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/static/bootstrap-icons/bootstrap-icons.css"
+    />
   </head>
   <body>
-    <h1>Telegram Bots Manager</h1>
-    <button id="shutdown" onclick="shutdown()">Shutdown</button>
-    <button id="reload-config" onclick="reloadConfig()">Reload Config</button>
-    <button id="start-all" onclick="startAll()">Start All Bots</button>
-    <button id="stop-all" onclick="stopAll()">Stop All Bots</button>
+    <div class="container">
+      <h1>Telegram Bots Manager</h1>
+      <div id="global-actions" class="mt-5 row">
+        <div class="col-auto">
+          <button id="start-all" class="btn btn-success" onclick="startAll()">
+            <i class="bi bi-play"></i>
+            Start All Bots
+          </button>
+        </div>
+        <div class="col-auto">
+          <button
+            id="restart-all"
+            class="btn btn-primary"
+            onclick="restartAll()"
+          >
+            <i class="bi bi-arrow-clockwise"></i>
+            Restart All Bots
+          </button>
+        </div>
+        <div class="col-auto">
+          <button
+            id="reload-config"
+            class="btn btn-info"
+            onclick="reloadConfig()"
+          >
+            <i class="bi bi-arrow-repeat"></i>
+            Reload Config
+          </button>
+        </div>
+        <div class="col-auto">
+          <button id="stop-all" class="btn btn-warning" onclick="stopAll()">
+            <i class="bi bi-stop"></i>
+            Stop All Bots
+          </button>
+        </div>
+        <div class="col-auto">
+          <button id="shutdown" class="btn btn-danger" onclick="shutdown()">
+            <i class="bi bi-x"></i>
+            Shutdown
+          </button>
+        </div>
+      </div>
 
-    <div id="applications-list">
-      <h2>Applications List</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Telegram</th>
-            <th>Telegram Token</th>
-            <th>Running</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="applications-tbody"></tbody>
-      </table>
+      <div id="applications-list" class="mt-5">
+        <h2>Applications List</h2>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Telegram</th>
+                <th>Telegram Token</th>
+                <th>Running</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="applications-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="log-history" class="mt-5">
+        <h2>Log History</h2>
+        <pre id="log-history-entries"></pre>
+      </div>
     </div>
-
-    <h2>Log History</h2>
-    <div id="log-history"></div>
 
     <script>
       const apiUrl = "http://" + window.location.host; // Replace with your FastAPI server address
@@ -88,6 +130,8 @@
       }
 
       function displayLogEntry({ text, status, timestamp } = {}) {
+        const logHistory = document.getElementById("log-history-entries");
+        var isScrolledToBottom = logHistory.scrollHeight - logHistory.clientHeight <= logHistory.scrollTop + 1;
         // Create a new log entry element
         const logEntry = document.createElement("div");
         logEntry.classList.add("log-entry");
@@ -108,8 +152,10 @@
         // Set the log entry content
         logEntry.textContent = `[${datetime}] ${status.toUpperCase()}: ${text}`;
 
-        const logHistory = document.getElementById("log-history");
         logHistory.appendChild(logEntry);
+        if (isScrolledToBottom) {
+          logHistory.scrollTop = logHistory.scrollHeight;
+        }
       }
 
       function currentTimestamp() {
@@ -141,17 +187,31 @@
         for (const app of applications.applications) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-                    <td class="col-id">${app.id}</td>
-                    <td class="col-telegram"><a href="${app.bot.link}" target="_blank">@${app.bot.username}</a></td>
-                    <td class="col-telegram-token">${app.telegram_token}</td>
-                    <td class="col-running">${app.running ? "✅" : "❌"}</td>
-                    <td class="col-actions">
-                        <button class="action-start-app" onclick="startApp('${app.id}')">Start</button>
-                        <button class="action-restart-app" onclick="restartApp('${app.id}')">Restart</button>
-                        <button class="action-reload-app" onclick="reloadApp('${app.id}')">Reload</button>
-                        <button class="action-stop-app" onclick="stopApp('${app.id}')">Stop</button>
-                    </td>
-                `;
+            <td class="align-middle col-id">${app.id}</td>
+            <td class="align-middle col-telegram"><a href="${
+              app.bot.link
+            }" target="_blank">@${app.bot.username}</a></td>
+            <td class="align-middle col-telegram-token">${
+              app.telegram_token
+            }</td>
+            <td class="align-middle col-running">${
+              app.running ? "✅" : "❌"
+            }</td>
+            <td class="align-middle col-actions d-flex justify-content-between">
+                <button ${app.running ? 'disabled' : ''} class="btn btn-success action-start-app" onclick="startApp('${
+                  app.id
+                }')"><i class="bi bi-play"></i> Start</button>
+                <button class="btn btn-primary action-restart-app" onclick="restartApp('${
+                  app.id
+                }')"><i class="bi bi-arrow-clockwise"></i> Restart</button>
+                <button class="btn btn-info action-reload-app" onclick="reloadApp('${
+                  app.id
+                }')"><i class="bi bi-arrow-repeat"></i> Reload</button>
+                <button ${!app.running ? 'disabled' : ''} class="btn btn-warning action-stop-app" onclick="stopApp('${
+                  app.id
+                }')"><i class="bi bi-stop"></i> Stop</button>
+            </td>
+          `;
           tbody.appendChild(tr);
         }
       }
@@ -222,5 +282,7 @@
       fetchAndDisplayLogEntries();
       setInterval(loadApplicationsList, 5000);
     </script>
+
+    <script src="/static/bootstrap/js/bootstrap.min.js"></script>
   </body>
 </html>
