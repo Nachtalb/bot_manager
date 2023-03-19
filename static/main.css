@@ -1,0 +1,26 @@
+#log-history-entries {
+  max-height: 300px;
+}
+
+.log-entry {
+  margin-bottom: 5px;
+}
+
+.log-success {
+  color: green;
+}
+
+.log-error {
+  color: red;
+}
+
+.col-telegram-token {
+  color: transparent;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  transition: all ease-in-out 100ms;
+}
+
+.col-telegram-token:hover {
+  color: inherit;
+  text-shadow: none;
+}
