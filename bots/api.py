@@ -104,6 +104,15 @@ async def stop_app(app_id: str):
 async def list_applications():
     app_list = []
     for id, app in applications.items():
-        app_info = {"id": id, "telegram_token": app.config.telegram_token, "running": app.running}
+        bot = await app.get_bot()
+        bot_dict = bot.to_dict()
+        bot_dict["link"] = bot.link
+
+        app_info = {
+            "id": id,
+            "telegram_token": app.config.telegram_token,
+            "running": app.running,
+            "bot": bot_dict,
+        }
         app_list.append(app_info)
     return {"status": "success", "applications": app_list}

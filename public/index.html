@@ -39,6 +39,7 @@
         <thead>
           <tr>
             <th>ID</th>
+            <th>Telegram</th>
             <th>Telegram Token</th>
             <th>Running</th>
             <th>Actions</th>
@@ -130,6 +131,7 @@
           const tr = document.createElement("tr");
           tr.innerHTML = `
                     <td>${app.id}</td>
+                    <td><a href="${app.bot.link}" target="_blank">@${app.bot.username}</a></td>
                     <td>${app.telegram_token}</td>
                     <td>${app.running ? "✅" : "❌"}</td>
                     <td>

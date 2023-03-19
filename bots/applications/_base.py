@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from telegram import Bot, User
 from telegram.ext import ApplicationBuilder
 
 from bots.config import ApplicationConfig
@@ -21,6 +22,7 @@ class ApplicationWrapper:
 
         self.application = ApplicationBuilder().token(self.config.telegram_token).build()
         self.running: bool = False
+        self._bot: User | None = None
 
     @property
     def id(self):
@@ -29,6 +31,15 @@ class ApplicationWrapper:
     @property
     def auto_start(self):
         return self.config.auto_start
+
+    async def get_bot(self) -> User:
+        if not self._bot:
+            await self._refresh_bot_info()
+        return self._bot  # pyright: ignore[reportGeneralTypeIssues]
+
+    async def _refresh_bot_info(self) -> User:
+        self._bot = await self.application.bot.get_me()
+        return self._bot
 
     async def setup(self):
         """Run as immediately after all applications have been loaded"""
