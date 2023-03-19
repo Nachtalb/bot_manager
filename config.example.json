@@ -1,0 +1,9 @@
+{
+    "app_configs": [
+        {
+            "module_name": "echo",
+            "id": "echo",
+            "telegram_token": "123...:xyz..."
+        }
+    ]
+}
