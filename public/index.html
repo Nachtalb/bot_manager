@@ -24,6 +24,17 @@
       .log-error {
         color: red;
       }
+
+      .col-telegram-token {
+        color: transparent;
+        text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+        transition: all ease-in-out 100ms;
+      }
+
+      .col-telegram-token:hover {
+        color: inherit;
+        text-shadow: none;
+      }
     </style>
   </head>
   <body>
@@ -130,15 +141,15 @@
         for (const app of applications.applications) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-                    <td>${app.id}</td>
-                    <td><a href="${app.bot.link}" target="_blank">@${app.bot.username}</a></td>
-                    <td>${app.telegram_token}</td>
-                    <td>${app.running ? "✅" : "❌"}</td>
-                    <td>
-                        <button onclick="startApp('${app.id}')">Start</button>
-                        <button onclick="restartApp('${app.id}')">Restart</button>
-                        <button onclick="reloadApp('${app.id}')">Reload</button>
-                        <button onclick="stopApp('${app.id}')">Stop</button>
+                    <td class="col-id">${app.id}</td>
+                    <td class="col-telegram"><a href="${app.bot.link}" target="_blank">@${app.bot.username}</a></td>
+                    <td class="col-telegram-token">${app.telegram_token}</td>
+                    <td class="col-running">${app.running ? "✅" : "❌"}</td>
+                    <td class="col-actions">
+                        <button class="action-start-app" onclick="startApp('${app.id}')">Start</button>
+                        <button class="action-restart-app" onclick="restartApp('${app.id}')">Restart</button>
+                        <button class="action-reload-app" onclick="reloadApp('${app.id}')">Reload</button>
+                        <button class="action-stop-app" onclick="stopApp('${app.id}')">Stop</button>
                     </td>
                 `;
           tbody.appendChild(tr);
