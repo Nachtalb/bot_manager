@@ -17,6 +17,15 @@ runtime_logs: list[LogEntry] = []
 logger = logging.getLogger("bot_manager")
 
 
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage().find("/list") == -1 and record.getMessage().find("/log") == -1
+
+
+# Filter out /endpoint
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+
+
 def log(arg_names: list[str] = []):
     def decorator_log(func):
         @functools.wraps(func)
