@@ -61,9 +61,18 @@
         urlWithQuery.search = searchParams.toString();
 
         // Fetch data from the URL with query parameters
-        const response = await fetch(urlWithQuery, { method: method });
-        const data = await response.json();
-        return data;
+        try {
+          const response = await fetch(urlWithQuery, { method: method });
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error(error);
+          displayLogEntry({
+            text: "Error fetching data",
+            status: "error",
+            timestamp: Math.floor(Date.now() / 1000),
+          });
+        }
       }
 
       function displayLogEntry({ text, status, timestamp } = {}) {
@@ -91,7 +100,6 @@
         logHistory.appendChild(logEntry);
       }
 
-
       function currentTimestamp() {
         return Math.floor(Date.now() / 1000);
       }
@@ -100,7 +108,7 @@
         // Fetch log entries since the current timestamp
         const logsUrl = apiUrl + "/logs";
 
-        const options = since ? {query: { since: since }} : {};
+        const options = since ? { query: { since: since } } : {};
         const logs = (await fetchData(logsUrl, options)).logs;
 
         // Display the fetched log entries using the displayLogEntry function
@@ -179,7 +187,7 @@
       // Call the loadApplicationsList function when the page loads
       loadApplicationsList();
       fetchAndDisplayLogEntries();
-      setInterval(loadApplicationsList, 5000)
+      setInterval(loadApplicationsList, 5000);
     </script>
   </body>
 </html>
