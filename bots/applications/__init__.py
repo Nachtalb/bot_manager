@@ -10,14 +10,16 @@ applications: dict[str, ApplicationWrapper] = {}
 _modules: dict[str, ModuleType] = {}
 
 
-async def load_applications():
+async def load_applications(app_id: str | None = None):
     with open("config.json", "r") as f:
         configs = json.load(f)
 
     for config in configs:
+        _id = config["id"]
+        if app_id and _id != app_id:
+            continue
         module_name = config["module_name"]
         telegram_token = config["telegram_token"]
-        _id = config["id"]
         auto_start = config.get("auto_start", False)
         kwargs = config.get("arguments", {})
 
@@ -42,6 +44,13 @@ async def start_all():
 
 async def stop_all():
     asyncio.gather(*[app.stop_application() for app in applications.values()])
+
+
+async def destroy(app_id: str):
+    app = applications[app_id]
+    await app.stop_application()
+    await app.teardown()
+    del applications[app_id]
 
 
 async def destroy_all():

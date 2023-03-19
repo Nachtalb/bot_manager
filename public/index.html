@@ -134,6 +134,8 @@
                     <td>${app.running ? "✅" : "❌"}</td>
                     <td>
                         <button onclick="startApp('${app.id}')">Start</button>
+                        <button onclick="restartApp('${app.id}')">Restart</button>
+                        <button onclick="reloadApp('${app.id}')">Reload</button>
                         <button onclick="stopApp('${app.id}')">Stop</button>
                     </td>
                 `;
@@ -144,6 +146,24 @@
       async function startApp(appId) {
         let ts = currentTimestamp();
         const result = await fetchData(`${apiUrl}/start_app/${appId}`, {
+          method: "POST",
+        });
+        fetchAndDisplayLogEntries(ts);
+        loadApplicationsList();
+      }
+
+      async function restartApp(appId) {
+        let ts = currentTimestamp();
+        const result = await fetchData(`${apiUrl}/restart_app/${appId}`, {
+          method: "POST",
+        });
+        fetchAndDisplayLogEntries(ts);
+        loadApplicationsList();
+      }
+
+      async function reloadApp(appId) {
+        let ts = currentTimestamp();
+        const result = await fetchData(`${apiUrl}/reload_app/${appId}`, {
           method: "POST",
         });
         fetchAndDisplayLogEntries(ts);

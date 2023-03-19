@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from bots.applications import applications
+from bots.applications import applications, destroy
 from bots.applications import destroy_all as destroy_all_applications
 from bots.applications import load_applications
 from bots.applications import start_all as start_all_applications
@@ -144,6 +144,31 @@ async def start_app(app_id: str):
         app = applications[app_id]
         await app.start_application()
         return {"status": "success", "message": f"Started app with ID {app_id}"}
+    except IndexError:
+        return {"status": "error", "message": f"No app found with ID {app_id}"}
+
+
+@app.post("/restart_app/{app_id}")
+@log(["app_id"])
+async def restart_app(app_id: str):
+    try:
+        app = applications[app_id]
+        await app.stop_application()
+        await app.start_application()
+        return {"status": "success", "message": f"Restarted app with ID {app_id}"}
+    except IndexError:
+        return {"status": "error", "message": f"No app found with ID {app_id}"}
+
+
+@app.post("/reload_app/{app_id}")
+@log(["app_id"])
+async def reload_app(app_id: str):
+    try:
+        await destroy(app_id)
+        await load_applications(app_id)
+        app = applications[app_id]
+        await app.start_application()
+        return {"status": "success", "message": f"Restarted app with ID {app_id}"}
     except IndexError:
         return {"status": "error", "message": f"No app found with ID {app_id}"}
 
