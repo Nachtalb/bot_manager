@@ -1,8 +1,9 @@
 import asyncio
 import importlib
-import json
 from types import ModuleType
 from typing import Type
+
+from bots.config import config
 
 from bots.applications._base import ApplicationWrapper
 
@@ -11,31 +12,23 @@ _modules: dict[str, ModuleType] = {}
 
 
 async def load_applications(app_id: str | None = None):
-    with open("config.json", "r") as f:
-        configs = json.load(f)
-
-    for config in configs:
-        _id = config["id"]
-        if app_id and _id != app_id:
+    for app_config in config.app_configs:
+        if app_id and app_config.id != app_id:
             continue
-        module_name = config["module_name"]
-        telegram_token = config["telegram_token"]
-        auto_start = config.get("auto_start", False)
-        kwargs = config.get("arguments", {})
 
-        if _id in applications:
+        if app_config.id in applications:
             raise ValueError("Duplicate bot ID")
 
-        module_path = f"bots.applications.{module_name}"
+        module_path = f"bots.applications.{app_config.module_name}"
         if module_path not in _modules:
             _modules[module_path] = importlib.import_module(module_path)
         else:
             _modules[module_path] = importlib.reload(_modules[module_path])
 
         app_class: Type[ApplicationWrapper] = getattr(_modules[module_path], "Application")
-        app_instance = app_class(telegram_token, _id, auto_start, kwargs)
+        app_instance = app_class(app_config)
         applications[app_instance.id] = app_instance
-    asyncio.gather(*[app.setup(**app.setup_args) for app in applications.values()])
+    asyncio.gather(*[app.setup() for app in applications.values()])
 
 
 async def start_all():

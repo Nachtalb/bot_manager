@@ -15,6 +15,7 @@ edgegpt = "^0.0.60"
 aiohttp = {extras = ["speedups"], version = "^3.8.4"}
 fastapi = "^0.94.1"
 uvicorn = "^0.21.1"
+pydantic = "^1.10.6"
 
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.13"

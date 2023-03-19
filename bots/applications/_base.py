@@ -1,16 +1,36 @@
+from typing import Generic, TypeVar
+from pydantic import BaseModel
 from telegram.ext import ApplicationBuilder
+from config import ApplicationConfig
 
 
 class ApplicationWrapper:
-    def __init__(self, telegram_token: str, _id: str, auto_start: bool = False, setup_args: dict = {}):
-        self.telegram_token = telegram_token
-        self.id = _id
-        self.name = f"{self.__class__.__name__}-{self.id}"
-        self.auto_start = auto_start
-        self.setup_args = setup_args
+    class Arguments(BaseModel):
+        pass
 
-        self.application = ApplicationBuilder().token(telegram_token).build()
+    class Config(BaseModel):
+        id: str
+        module_name: str
+        telegram_token: str
+        auto_start: bool = False
+
+    def __init__(self, config: ApplicationConfig):
+        raw_config = config.dict()
+        self.arguments = self.Arguments.parse_obj(raw_config.pop("arguments"))
+        self.config = self.Config.parse_obj(raw_config)
+
+        self.name = f"{self.__class__.__name__}-{self.config.id}"
+
+        self.application = ApplicationBuilder().token(self.config.telegram_token).build()
         self.running: bool = False
+
+    @property
+    def id(self):
+        return self.config.id
+
+    @property
+    def auto_start(self):
+        return self.config.auto_start
 
     async def setup(self):
         """Run as immediately after all applications have been loaded"""
