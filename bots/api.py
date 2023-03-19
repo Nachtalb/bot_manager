@@ -80,11 +80,14 @@ async def restart_app(app_id: str):
 @log(["app_id"])
 async def reload_app(app_id: str):
     try:
+        was_on = applications[app_id].running
         await destroy(app_id)
         await load_applications(app_id)
         app = applications[app_id]
-        await app.start_application()
-        return {"status": "success", "message": f"Restarted app with ID {app_id}"}
+
+        if was_on:
+            await app.start_application()
+        return {"status": "success", "message": f"Reloaded app with ID {app_id}"}
     except IndexError:
         return {"status": "error", "message": f"No app found with ID {app_id}"}
 

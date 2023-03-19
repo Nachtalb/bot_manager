@@ -8,6 +8,6 @@ def main():
         "bots.app:app",
         host=config.host,
         port=config.port,
-        log_level=config.log_level_int,
+        log_level=config.web_log_level_int,
         **config.uvicorn_args,
     )

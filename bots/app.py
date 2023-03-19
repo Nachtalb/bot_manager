@@ -6,21 +6,25 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from bots.api import router
 from bots.applications import applications
 from bots.applications import destroy_all as destroy_all_applications
 from bots.applications import load_applications
-from bots.api import router
-from bots.log import runtime_logs, LogEntry
+from bots.config import config
+from bots.log import LogEntry, runtime_logs
 
 app = FastAPI()
 
 app.include_router(router)
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()]
+    level=config.global_log_level_int,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 
 logger = logging.getLogger("bot_manager")
+logger.setLevel(config.local_log_level_int)
 
 
 # Add these lines to serve the 'index.html' file from the 'static' folder
