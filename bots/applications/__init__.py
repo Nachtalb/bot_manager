@@ -24,20 +24,18 @@ async def load_applications(app_id: str | None = None):
         if ":" in app_config.module:
             module_path, name = app_config.module.split(":", 1)
 
-        possible_locations = ["bots.applications" + module_path, module_path]
+        if "." not in module_path:
+            module_path = "bots.applications." + module_path
 
-        for path in possible_locations:
-            try:
-                if path not in _modules:
-                    _modules[path] = importlib.import_module(path)
-                else:
-                    _modules[path] = importlib.reload(_modules[path])
-                module_path = path
-                break
-            except ImportError:
-                pass
-        else:
-            raise ValueError(f"Module {module_path} not found for application {app_config.id}")
+        try:
+            if module_path not in _modules:
+                _modules[module_path] = importlib.import_module(module_path)
+            else:
+                _modules[module_path] = importlib.reload(_modules[module_path])
+        except ImportError:
+            raise ModuleNotFoundError(
+                f"No module named {module_path} for application {app_config.id}", name=module_path
+            )
 
         try:
             app_class: Type[ApplicationWrapper] = getattr(_modules[module_path], name)

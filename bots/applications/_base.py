@@ -10,14 +10,12 @@ class ApplicationWrapper:
 
     class Config(BaseModel):
         id: str
-        module_name: str
         telegram_token: str
         auto_start: bool = False
 
     def __init__(self, config: ApplicationConfig):
-        raw_config = config.dict()
-        self.arguments = self.Arguments.parse_obj(raw_config.pop("arguments"))
-        self.config = self.Config.parse_obj(raw_config)
+        self.config = self.Config.parse_obj(config)
+        self.arguments = self.Arguments.parse_obj(config.arguments)
 
         self.name = f"{self.__class__.__name__}-{self.config.id}"
 
