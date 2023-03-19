@@ -1,7 +1,7 @@
-from typing import Generic, TypeVar
 from pydantic import BaseModel
 from telegram.ext import ApplicationBuilder
-from config import ApplicationConfig
+
+from bots.config import ApplicationConfig
 
 
 class ApplicationWrapper:
