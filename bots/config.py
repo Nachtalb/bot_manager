@@ -6,7 +6,7 @@ import logging
 
 class ApplicationConfig(BaseModel):
     id: str
-    module_name: str
+    module: str
     telegram_token: str
     auto_start: bool = False
     arguments: dict[str, Any] = {}

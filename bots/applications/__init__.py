@@ -19,10 +19,10 @@ async def load_applications(app_id: str | None = None):
         if app_config.id in applications:
             raise ValueError("Duplicate bot ID")
 
-        name = "Application"
-        module_path = app_config.module_name
-        if ":" in app_config.module_name:
-            module_path, name = app_config.module_name.split(":", 1)
+        name: str = "Application"
+        module_path = app_config.module
+        if ":" in app_config.module:
+            module_path, name = app_config.module.split(":", 1)
 
         possible_locations = ["bots.applications" + module_path, module_path]
 
