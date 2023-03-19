@@ -1,8 +1,10 @@
+import logging
 from pydantic import BaseModel
-from telegram import Bot, User
+from telegram import User
 from telegram.ext import ApplicationBuilder
 
 from bots.config import ApplicationConfig
+from bots.config import config as global_config
 
 
 class ApplicationWrapper:
@@ -19,6 +21,9 @@ class ApplicationWrapper:
         self.arguments = self.Arguments.parse_obj(config.arguments)
 
         self.name = f"{self.__class__.__name__}-{self.config.id}"
+
+        self.logger = logging.getLogger(self.id)
+        self.logger.setLevel(global_config.local_log_level_int)
 
         self.application = ApplicationBuilder().token(self.config.telegram_token).build()
         self.running: bool = False
@@ -61,6 +66,7 @@ class ApplicationWrapper:
         await self.application.initialize()
         await self.application.start()
         await self.application.updater.start_polling()
+        self.logger.info("Started")
         self.running = True
         return self
 
@@ -71,3 +77,6 @@ class ApplicationWrapper:
             await self.application.stop()
             await self.application.shutdown()
             self.running = False
+            self.logger.info("Stopped")
+        else:
+            self.logger.info("Already stopped")
