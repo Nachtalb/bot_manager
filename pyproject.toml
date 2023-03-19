@@ -9,9 +9,6 @@ packages = [{include = "bots"}]
 [tool.poetry.dependencies]
 python = "^3.11.0, <3.12.0"
 python-telegram-bot = {extras = ["job-queue"], version = "^20.1"}
-openai = "^0.27.2"
-markdown-it-py = "^2.2.0"
-edgegpt = "^0.0.60"
 aiohttp = {extras = ["speedups"], version = "^3.8.4"}
 fastapi = "^0.94.1"
 uvicorn = "^0.21.1"
