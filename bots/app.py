@@ -1,7 +1,9 @@
 import asyncio
 import functools
 import logging
+import os
 import time
+import signal
 from typing import TypedDict
 
 from fastapi import FastAPI
@@ -94,6 +96,12 @@ async def on_startup():
         entry = LogEntry(text=f"{app.name} auto started", status="success", timestamp=int(time.time()))
         logger.info(entry["text"])
         logs.append(entry)
+
+
+@app.get("/shutdown")
+async def shutdown_server():
+    await destroy_all_applications()
+    os.kill(os.getpid(), signal.SIGINT)
 
 
 @app.get("/logs")

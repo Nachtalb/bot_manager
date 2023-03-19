@@ -28,6 +28,7 @@
   </head>
   <body>
     <h1>Telegram Bots Manager</h1>
+    <button id="shutdown" onclick="shutdown()">Shutdown</button>
     <button id="reload-config" onclick="reloadConfig()">Reload Config</button>
     <button id="start-all" onclick="startAll()">Start All Bots</button>
     <button id="stop-all" onclick="stopAll()">Stop All Bots</button>
@@ -148,6 +149,10 @@
         });
         fetchAndDisplayLogEntries(ts);
         loadApplicationsList();
+      }
+
+      async function shutdown() {
+        await fetchData(`${apiUrl}/shutdown`);
       }
 
       async function reloadConfig() {
