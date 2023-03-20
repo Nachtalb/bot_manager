@@ -10,6 +10,7 @@ from bots.applications import destroy_all as destroy_all_applications
 from bots.applications import load_applications
 from bots.applications import start_all as start_all_applications
 from bots.applications import stop_all as stop_all_applications
+from bots.config import Config, config
 from bots.log import log, runtime_logs
 
 router = APIRouter()
@@ -36,6 +37,8 @@ async def reload_config():
     active = [id for id, app in applications.items() if app.running]
     await destroy_all_applications()
     reload(_base)
+    new_config = Config.parse_file("config.json")
+    config.app_configs = new_config.app_configs
     await load_applications()
     asyncio.gather(*[app.start_application() for id, app in applications.items() if id in active])
     return {"status": "success"}
@@ -84,6 +87,16 @@ async def reload_app(app_id: str):
     try:
         was_on = applications[app_id].running
         await destroy(app_id)
+
+        new_config = next(
+            (app_config for app_config in Config.parse_file("config.json").app_configs if app_config.id == app_id), None
+        )
+
+        if new_config:
+            for index, app_config in enumerate(config.app_configs[:]):
+                if app_config.id == app_id:
+                    config.app_configs[index] = new_config
+
         await load_applications(app_id)
         app = applications[app_id]
 
