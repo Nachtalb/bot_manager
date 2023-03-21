@@ -131,6 +131,27 @@ async def list_applications():
             "telegram_token": app.config.telegram_token,
             "running": app.running,
             "bot": bot_dict,
+            "config": app.arguments.dict(),
         }
         app_list.append(app_info)
     return {"status": "success", "applications": app_list}
+
+
+@router.get("/app/{app_id}")
+async def get_app(app_id: str):
+    app = applications.get(app_id)
+    if not app:
+        return {"status": "error", "message": f"Bo app found with ID {app_id}"}
+
+    bot = await app.get_bot()
+    bot_dict = bot.to_dict()
+    bot_dict["link"] = bot.link
+
+    app_info = {
+        "id": id,
+        "telegram_token": app.config.telegram_token,
+        "running": app.running,
+        "bot": bot_dict,
+        "config": app.arguments.dict(),
+    }
+    return {"status": "success", "data": app_info}
