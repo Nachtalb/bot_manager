@@ -1,7 +1,10 @@
 import asyncio
+import functools
 import inspect
 import re
 from typing import AsyncIterable, AsyncIterator, TypeVar
+
+from bots.log import logger
 
 
 def get_arg_value(arg_name, func, args, kwargs):
@@ -68,3 +71,15 @@ def stabelise_string(text: str, entity_type: str = "") -> str:
         escape_chars = r"\[]()~>#+-=|{}.!"
 
     return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", text)
+
+
+def safe_error(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except (Exception, BaseException) as error:
+            logger.error(error)
+            return {"status": "error", "message": "An error occurred"}
+
+    return wrapper

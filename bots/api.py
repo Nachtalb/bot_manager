@@ -12,17 +12,21 @@ from bots.applications import start_all as start_all_applications
 from bots.applications import stop_all as stop_all_applications
 from bots.config import Config, config
 from bots.log import log, runtime_logs
+from bots.utils import safe_error
 
 router = APIRouter()
 
 
 @router.get("/shutdown")
+@safe_error
 async def shutdown_server():
     await destroy_all_applications()
     os.kill(os.getpid(), signal.SIGINT)
 
 
 @router.get("/logs")
+@safe_error
+@log(ignore_incoming=True)
 async def list_logs(since: int = 0):
     filtered_logs = runtime_logs
     if since:
@@ -32,6 +36,7 @@ async def list_logs(since: int = 0):
 
 
 @router.get("/reload_config")
+@safe_error
 @log()
 async def reload_config():
     active = [id for id, app in applications.items() if app.running]
@@ -45,6 +50,7 @@ async def reload_config():
 
 
 @router.get("/start_all")
+@safe_error
 @log()
 async def start_all():
     await start_all_applications()
@@ -52,6 +58,7 @@ async def start_all():
 
 
 @router.get("/stop_all")
+@safe_error
 @log()
 async def stop_all():
     await stop_all_applications()
@@ -59,6 +66,7 @@ async def stop_all():
 
 
 @router.post("/start_app/{app_id}")
+@safe_error
 @log(["app_id"])
 async def start_app(app_id: str):
     try:
@@ -70,6 +78,7 @@ async def start_app(app_id: str):
 
 
 @router.post("/restart_app/{app_id}")
+@safe_error
 @log(["app_id"])
 async def restart_app(app_id: str):
     try:
@@ -82,6 +91,7 @@ async def restart_app(app_id: str):
 
 
 @router.post("/reload_app/{app_id}")
+@safe_error
 @log(["app_id"])
 async def reload_app(app_id: str):
     try:
@@ -108,6 +118,7 @@ async def reload_app(app_id: str):
 
 
 @router.post("/stop_app/{app_id}")
+@safe_error
 @log(["app_id"])
 async def stop_app(app_id: str):
     try:

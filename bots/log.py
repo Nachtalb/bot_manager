@@ -4,6 +4,7 @@ import time
 from typing import TypedDict
 
 from bots.utils import get_arg_value
+from bots.config import config
 
 
 class LogEntry(TypedDict):
@@ -15,6 +16,7 @@ class LogEntry(TypedDict):
 runtime_logs: list[LogEntry] = []
 
 logger = logging.getLogger("bot_manager")
+logger.setLevel(config.local_log_level)
 
 
 class EndpointFilter(logging.Filter):
@@ -26,7 +28,7 @@ class EndpointFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 
-def log(arg_names: list[str] = []):
+def log(arg_names: list[str] = [], ignore_incoming: bool = False):
     def decorator_log(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -53,9 +55,10 @@ def log(arg_names: list[str] = []):
             finally:
                 if entry["status"] == "error":
                     logger.warning(entry["text"])
-                else:
+
+                if entry["status"] != "success" or not ignore_incoming:
                     logger.info(entry["text"])
-                runtime_logs.append(entry)
+                    runtime_logs.append(entry)
 
             return response
 
