@@ -1,10 +1,11 @@
 import asyncio
 import functools
 import inspect
+import logging
 import re
 from typing import AsyncIterable, AsyncIterator, TypeVar
 
-from bots.log import logger
+logger = logging.getLogger("bot_manager")
 
 
 def get_arg_value(arg_name, func, args, kwargs):
