@@ -18,6 +18,9 @@ from bots.utils import safe_error
 router = APIRouter()
 
 
+sync_lock = asyncio.Lock()
+
+
 @router.get("/shutdown")
 @safe_error
 async def shutdown_server():
@@ -40,14 +43,15 @@ async def list_logs(since: int = 0):
 @safe_error
 @log()
 async def reload_config():
-    active = [id for id, app in applications.items() if app.running]
-    await destroy_all_applications()
-    reload(_base)
-    new_config = Config.parse_file("config.json")
-    config.app_configs = new_config.app_configs
-    await load_applications()
-    asyncio.gather(*[app.start_application() for id, app in applications.items() if id in active])
-    return {"status": "success"}
+    async with sync_lock:
+        active = [id for id, app in applications.items() if app.running]
+        await destroy_all_applications()
+        reload(_base)
+        new_config = Config.parse_file("config.json")
+        config.app_configs = new_config.app_configs
+        await load_applications()
+        asyncio.gather(*[app.start_application() for id, app in applications.items() if id in active])
+        return {"status": "success"}
 
 
 @router.get("/start_all")
@@ -115,39 +119,33 @@ async def stop_app(app_id: str):
 
 
 @router.get("/list")
+@safe_error
+@log(ignore_incoming=True)
 async def list_applications():
-    app_list = []
-    for id, app in applications.items():
-        bot = await app.get_bot()
-        bot_dict = bot.to_dict()
-        bot_dict["link"] = bot.link
-
-        app_info = {
-            "id": id,
-            "telegram_token": app.config.telegram_token,
-            "running": app.running,
-            "bot": bot_dict,
-            "config": app.arguments.dict(),
-        }
-        app_list.append(app_info)
-    return {"status": "success", "applications": app_list}
+    async with sync_lock:
+        return {"status": "success", "applications": [await _app_info(app) for app in applications.values()]}
 
 
-@router.get("/app/{app_id}")
-async def get_app(app_id: str):
-    app = applications.get(app_id)
-    if not app:
-        return {"status": "error", "message": f"Bo app found with ID {app_id}"}
-
+async def _app_info(app: _base.ApplicationWrapper) -> dict[str, Any]:
     bot = await app.get_bot()
     bot_dict = bot.to_dict()
     bot_dict["link"] = bot.link
 
-    app_info = {
-        "id": id,
+    return {
+        "id": app.id,
         "telegram_token": app.config.telegram_token,
         "running": app.running,
         "bot": bot_dict,
-        "config": app.arguments.dict(),
+        "config": json.loads(app.arguments.json()),
     }
-    return {"status": "success", "data": app_info}
+
+
+@router.get("/app/{app_id}")
+@safe_error
+@log(ignore_incoming=True)
+async def get_app(app_id: str):
+    app = applications.get(app_id)
+    if not app:
+        return {"status": "error", "message": f"No app found with ID {app_id}"}
+
+    return {"status": "success", "data": await _app_info(app)}
