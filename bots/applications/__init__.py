@@ -1,14 +1,18 @@
 import asyncio
 import importlib
+from logging import getLogger
 from types import ModuleType
 from typing import Type
 
-from bots.config import config
+from bots.config import Config, config
 
 from bots.applications._base import ApplicationWrapper
 
 applications: dict[str, ApplicationWrapper] = {}
 _modules: dict[str, ModuleType] = {}
+
+logger = getLogger("application_manager")
+logger.setLevel(config.local_log_level)
 
 
 async def load_applications(app_id: str | None = None):
@@ -29,8 +33,10 @@ async def load_applications(app_id: str | None = None):
 
         try:
             if module_path not in _modules:
+                logger.info(f"Loading {module_path}")
                 _modules[module_path] = importlib.import_module(module_path)
             else:
+                logger.info(f"Reloading {module_path}")
                 _modules[module_path] = importlib.reload(_modules[module_path])
         except ImportError:
             raise ModuleNotFoundError(
@@ -48,7 +54,13 @@ async def load_applications(app_id: str | None = None):
 
         app_instance = app_class(app_config)
         applications[app_instance.id] = app_instance
-    asyncio.gather(*[app.setup() for app in applications.values()])
+
+        logger.info(f"App created {app_instance.config.id}")
+        if app_id:
+            await app_instance.setup()
+
+    if not app_id:
+        asyncio.gather(*[app.setup() for app in applications.values()])
 
 
 async def start_all():
@@ -70,3 +82,24 @@ async def destroy_all():
     await stop_all()
     asyncio.gather(*[app.teardown() for app in applications.values()])
     applications.clear()
+
+
+async def reload_app(app_id: str):
+    was_on = applications[app_id].running
+    await destroy(app_id)
+
+    new_config = next(
+        (app_config for app_config in Config.parse_file("config.json").app_configs if app_config.id == app_id), None
+    )
+
+    if new_config:
+        for index, app_config in enumerate(config.app_configs[:]):
+            if app_config.id == app_id and app_config != new_config:
+                config.app_configs[index] = new_config
+                break
+
+    await load_applications(app_id)
+    app = applications[app_id]
+
+    if was_on:
+        await app.start_application()

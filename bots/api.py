@@ -5,7 +5,8 @@ import signal
 
 from fastapi import APIRouter
 
-from bots.applications import applications, destroy, _base
+from bots.applications import applications, _base
+from bots.applications import reload_app as reload_application
 from bots.applications import destroy_all as destroy_all_applications
 from bots.applications import load_applications
 from bots.applications import start_all as start_all_applications
@@ -94,27 +95,11 @@ async def restart_app(app_id: str):
 @safe_error
 @log(["app_id"])
 async def reload_app(app_id: str):
-    try:
-        was_on = applications[app_id].running
-        await destroy(app_id)
-
-        new_config = next(
-            (app_config for app_config in Config.parse_file("config.json").app_configs if app_config.id == app_id), None
-        )
-
-        if new_config:
-            for index, app_config in enumerate(config.app_configs[:]):
-                if app_config.id == app_id:
-                    config.app_configs[index] = new_config
-
-        await load_applications(app_id)
-        app = applications[app_id]
-
-        if was_on:
-            await app.start_application()
-        return {"status": "success", "message": f"Reloaded app with ID {app_id}"}
-    except IndexError:
+    if app_id not in applications:
         return {"status": "error", "message": f"No app found with ID {app_id}"}
+    async with sync_lock:
+        await reload_application(app_id)
+    return {"status": "success", "message": f"Reloaded app with ID {app_id}"}
 
 
 @router.post("/stop_app/{app_id}")
