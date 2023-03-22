@@ -1,9 +1,13 @@
 import asyncio
 from importlib import reload
+import json
 import os
+from pathlib import Path
 import signal
+from typing import Any
 
 from fastapi import APIRouter
+from pydantic import ValidationError
 
 from bots.applications import applications, _base
 from bots.applications import reload_app as reload_application
@@ -147,5 +151,39 @@ async def get_app(app_id: str):
     app = applications.get(app_id)
     if not app:
         return {"status": "error", "message": f"No app found with ID {app_id}"}
+
+    return {"status": "success", "data": await _app_info(app)}
+
+
+@router.patch("/app/{app_id}/edit")
+@safe_error
+@log(["app_id", "data"])
+async def edit_config(app_id: str, data: dict):
+    async with sync_lock:
+        new_config = data.get("new_config")
+        if new_config is None:
+            return {"status": "error", "message": "New config is empty"}
+
+        app = applications.get(app_id)
+        if not app:
+            return {"status": "error", "message": f"Bo app found with ID {app_id}"}
+
+        try:
+            parsed_config = app.Arguments.parse_obj(new_config)
+        except ValidationError as error:
+            return {"status": "error", "message": str(error)}
+
+        app_config = next(a_config for a_config in config.app_configs if a_config.id == app_id)
+
+        arg_dict = parsed_config.dict()
+        for name, value in parsed_config.__fields__.items():
+            if getattr(parsed_config, name) == value.default:
+                arg_dict.pop(name)
+
+        app_config.arguments = arg_dict
+
+        Path("config.json").write_text(config.json(ensure_ascii=False, sort_keys=True, indent=4))
+
+        await reload_application(app_id)
 
     return {"status": "success", "data": await _app_info(app)}
