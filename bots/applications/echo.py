@@ -1,10 +1,10 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
-from bots.applications._base import ApplicationWrapper
+from bots.applications._base import Application
 
 
-class Echo(ApplicationWrapper):
+class Echo(Application):
     async def setup(self):
         self.application.add_handler(MessageHandler(filters.TEXT, self.echo))
 

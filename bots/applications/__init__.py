@@ -2,104 +2,108 @@ import asyncio
 import importlib
 from logging import getLogger
 from types import ModuleType
-from typing import Type
+from typing import Iterable, Type
 
-from bots.config import Config, config
-
-from bots.applications._base import ApplicationWrapper
-
-applications: dict[str, ApplicationWrapper] = {}
-_modules: dict[str, ModuleType] = {}
+from bots.applications._base import Application
+from bots.config import CONFIG_FILE, Config, config
 
 logger = getLogger("application_manager")
 logger.setLevel(config.local_log_level)
 
 
-async def load_applications(app_id: str | None = None):
-    for app_config in config.app_configs:
-        if app_id and app_config.id != app_id:
-            continue
+class AppManager:
+    def __init__(self):
+        self._modules: dict[str, ModuleType] = {}
+        self.apps: dict[str, Application] = {}
 
-        if app_config.id in applications:
-            raise ValueError("Duplicate bot ID")
-
-        name: str = "Application"
-        module_path = app_config.module
-        if ":" in app_config.module:
-            module_path, name = app_config.module.split(":", 1)
+    def _load_module(self, module_path: str) -> tuple[str, ModuleType]:
+        module_path = module_path.split(":", 1)[0]
 
         if "." not in module_path:
             module_path = "bots.applications." + module_path
 
-        try:
-            if module_path not in _modules:
-                logger.info(f"Loading {module_path}")
-                _modules[module_path] = importlib.import_module(module_path)
-            else:
-                logger.info(f"Reloading {module_path}")
-                _modules[module_path] = importlib.reload(_modules[module_path])
-        except ImportError:
-            raise ModuleNotFoundError(
-                f"No module named {module_path} for application {app_config.id}", name=module_path
-            )
+        if module_path not in self._modules:
+            logger.info(f"Loading {module_path}")
+            self._modules[module_path] = module = importlib.import_module(module_path)
+        else:
+            logger.info(f"Reloading {module_path}")
+            self._modules[module_path] = module = importlib.reload(self._modules[module_path])
+
+        return module_path, module
+
+    def _get_application_class(self, module_full_path: str) -> Type[Application]:
+        name = module_full_path.split(":", 1)[1] if ":" in module_full_path else "Application"
+        module_path, module = self._load_module(module_full_path)
 
         try:
-            app_class: Type[ApplicationWrapper] = getattr(_modules[module_path], name)
+            return getattr(module, name)
         except AttributeError:
-            raise ImportError(
-                f"Cannot import name '{name}' from '{module_path}' for application {app_config.id}",
-                name=module_path,
-                path=_modules[module_path].__file__,
-            )
+            raise ImportError(f"Cannot import name '{name}' from '{module}'", name=module_path, path=module.__file__)
 
-        app_instance = app_class(app_config)
-        applications[app_instance.id] = app_instance
+    async def start_all(self):
+        await asyncio.gather(*[app.start() for app in self.apps.values()])
 
-        logger.info(f"App created {app_instance.config.id}")
-        if app_id:
-            await app_instance.setup()
+    async def stop_all(self):
+        await asyncio.gather(*[app.stop() for app in self.apps.values()])
 
-    if not app_id:
-        asyncio.gather(*[app.setup() for app in applications.values()])
+    async def restart_all(self):
+        await self.stop_all()
+        await self.start_all()
+
+    async def destroy(self, app_id: str):
+        app = self.apps[app_id]
+        await app.stop()
+        await app.teardown()
+        del self.apps[app.id]
+
+    async def load(self, app_id: str, run_setup: bool = True) -> Application:
+        if app_id in self.apps:
+            raise ValueError(f"Application already loaded")
+
+        app_config = config.app_config(app_id)
+        if not app_config:
+            raise IndexError(f"Application with ID {app_id} not found.")
+
+        self.apps[app_config.id] = app = self._get_application_class(app_config.module)(self, app_config)
+        if run_setup:
+            await app.setup()
+        return app
+
+    async def load_all(self) -> Iterable[Application]:
+        for app_config in config.app_configs:
+            await self.load(app_config.id, False)
+        await asyncio.gather(*[app.setup() for app in self.apps.values()])
+        return self.apps.values()
+
+    async def destroy_all(self):
+        await asyncio.gather(*[self.destroy(app_id) for app_id in self.apps])
+
+    async def reload(self, app_id: str):
+        was_on = self.apps[app_id].running
+        await self.destroy(app_id)
+
+        new_app_config = Config.parse_file(CONFIG_FILE).app_config(app_id)
+        if not new_app_config:
+            raise ValueError(f"No config found for app with ID {app_id}")
+
+        config.set_app_config(new_app_config)
+
+        app = await self.load(app_id)
+
+        if was_on:
+            await app.start()
+        return app
+
+    async def reload_all(self):
+        new_config = Config.parse_file(CONFIG_FILE)
+        for field, value in new_config:
+            setattr(config, field, value)
+
+        were_on = [app.id for app in self.apps.values() if app.running]
+        await self.destroy_all()
+        await self.load_all()
+
+        await asyncio.gather(*[self.apps[app_id].start() for app_id in were_on])
 
 
-async def start_all():
-    asyncio.gather(*[app.start_application() for app in applications.values()])
-
-
-async def stop_all():
-    asyncio.gather(*[app.stop_application() for app in applications.values()])
-
-
-async def destroy(app_id: str):
-    app = applications[app_id]
-    await app.stop_application()
-    await app.teardown()
-    del applications[app_id]
-
-
-async def destroy_all():
-    await stop_all()
-    asyncio.gather(*[app.teardown() for app in applications.values()])
-    applications.clear()
-
-
-async def reload_app(app_id: str):
-    was_on = applications[app_id].running
-    await destroy(app_id)
-
-    new_config = next(
-        (app_config for app_config in Config.parse_file("config.json").app_configs if app_config.id == app_id), None
-    )
-
-    if new_config:
-        for index, app_config in enumerate(config.app_configs[:]):
-            if app_config.id == app_id and app_config != new_config:
-                config.app_configs[index] = new_config
-                break
-
-    await load_applications(app_id)
-    app = applications[app_id]
-
-    if was_on:
-        await app.start_application()
+app_manager = AppManager()

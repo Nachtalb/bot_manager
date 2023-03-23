@@ -3,8 +3,8 @@ import logging
 import time
 from typing import TypedDict
 
-from bots.utils import get_arg_value
 from bots.config import config
+from bots.utils.misc import get_arg_value
 
 
 class LogEntry(TypedDict):

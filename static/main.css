@@ -7,11 +7,15 @@
 }
 
 .log-success {
-  color: green;
+  color: var(--bs-success);
 }
 
 .log-error {
-  color: red;
+  color: var(--bs-danger);
+}
+
+.log-warning {
+  color: var(--bs-warning);
 }
 
 .col-telegram-token {

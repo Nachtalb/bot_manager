@@ -1,42 +1,106 @@
-const apiUrl = "http://" + window.location.host; // Replace with your FastAPI server address
-
-async function fetchData(url, { method = "GET", query = {}, data = {} } = {}) {
-  // Add query parameters to the URL
-  const searchParams = new URLSearchParams(query);
-  const urlWithQuery = new URL(url);
-  urlWithQuery.search = searchParams.toString();
-
-  options = {
-    method: method,
-  };
-
-  jsonData = JSON.stringify(data);
-
-  if (jsonData !== "{}") {
-    options.headers = {
-      "Content-Type": "application/json",
-    };
-    options.body = jsonData;
+class AppManager {
+  constructor() {
+    this.apps = [];
   }
 
-  // Fetch data from the URL with query parameters
-  try {
-    const response = await fetch(urlWithQuery, options);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    displayLogEntry({
-      text: `Error fetching data: ${error}`,
-      status: "error",
-      timestamp: Math.floor(Date.now() / 1000),
-    });
-    throw error;
+  updateApps(newApps) {
+    this.apps = newApps;
+    this.fillTable();
+  }
+
+  updateAppById(id, updatedApp) {
+    const appIndex = this.apps.findIndex((app) => app.id === id);
+
+    if (appIndex !== -1) {
+      this.apps[appIndex] = updatedApp;
+      this.fillTable(updatedApp);
+    } else {
+      console.error(`App with id '${id}' not found`);
+    }
+  }
+
+  getAppById(id) {
+    return this.apps.find((app) => app.id === id);
+  }
+
+  async fillTable(updatedApp) {
+    const tbody = document.getElementById("applications-tbody");
+
+    if (!updatedApp) {
+      // Clear the existing table content
+      tbody.innerHTML = "";
+    }
+
+    // Fill the table with the list of applications or update a single row
+    for (const app of this.apps) {
+      if (updatedApp && app.id !== updatedApp.id) {
+        continue;
+      }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="align-middle col-id">${app.id}</td>
+        <td class="align-middle col-telegram">
+          <a href="${app.bot.link}" target="_blank">@${app.bot.username}</a>
+        </td>
+        <td class="align-middle col-telegram-token">${app.telegram_token}</td>
+        <td class="align-middle col-running">${app.running ? "✅" : "❌"}</td>
+        <td class="align-middle col-actions d-flex justify-content-between">
+            <button
+              ${app.running ? "disabled" : ""}
+              class="btn btn-success action-start-app"
+              onclick="apiSocket.emit('app_start', {appId: '${app.id}'})">
+              <i class="bi bi-play"></i> Start
+            </button>
+            <button class="btn btn-primary action-restart-app" onclick="apiSocket.emit('app_restart', {appId: '${
+              app.id
+            }'})">
+              <i class="bi bi-arrow-clockwise"></i> Restart
+            </button>
+            <button class="btn btn-info action-reload-app" onclick="apiSocket.emit('app_reload', {appId: '${app.id}'})">
+              <i class="bi bi-arrow-repeat"></i> Reload
+            </button>
+            <button
+              ${!app.running ? "disabled" : ""}
+              class="btn btn-warning action-stop-app"
+              onclick="apiSocket.emit('app_stop', {appId: '${app.id}'})">
+              <i class="bi bi-stop"></i> Stop
+            </button>
+            <button
+              class="btn btn-secondary action-stop-app"
+              data-bs-toggle="modal"
+              data-bs-target="#editAppConfigModal"
+              data-bs-app-id="${app.id}">
+                <i class="bi bi-pencil-square"></i> Edit Config
+            </button>
+        </td>
+      `;
+
+      tr.setAttribute("data-app-id", app.id);
+
+      if (updatedApp) {
+        const existingRow = tbody.querySelector(`tr[data-app-id="${app.id}"]`);
+        if (existingRow) {
+          tbody.replaceChild(tr, existingRow);
+        } else {
+          tbody.appendChild(tr);
+        }
+      } else {
+        tbody.appendChild(tr);
+      }
+    }
   }
 }
 
-function displayLogEntry({ text, status, timestamp } = {}) {
-  const logHistory = document.getElementById("log-history-entries");
+// Usage example:
+const appManager = new AppManager();
+const serverSocket = io(`ws://${window.location.host}/server`, {path: "/ws/socket.io"});
+const apiSocket = io(`ws://${window.location.host}/api`, {path: "/ws/socket.io"});
+const logHistory = document.getElementById("log-history-entries");
+
+function displayLogEntry(namespace, event, status, message) {
   var isScrolledToBottom = logHistory.scrollHeight - logHistory.clientHeight <= logHistory.scrollTop + 1;
+
   // Create a new log entry element
   const logEntry = document.createElement("div");
   logEntry.classList.add("log-entry");
@@ -46,16 +110,14 @@ function displayLogEntry({ text, status, timestamp } = {}) {
     logEntry.classList.add("log-success");
   } else if (status === "error") {
     logEntry.classList.add("log-error");
+  } else if (status === "warning") {
+    logEntry.classList.add("log-warning");
   } else if (status === "info") {
     logEntry.classList.add("log-info");
   }
 
-  // Convert the timestamp to a readable datetime
-  const date = new Date(timestamp * 1000);
-  const datetime = date.toISOString();
-
   // Set the log entry content
-  logEntry.textContent = `[${datetime}] ${status.toUpperCase()}: ${text}`;
+  logEntry.textContent = `[${namespace}/${event}] Status: ${status.toUpperCase()}, Message: ${message}`;
 
   logHistory.appendChild(logEntry);
   if (isScrolledToBottom) {
@@ -63,119 +125,26 @@ function displayLogEntry({ text, status, timestamp } = {}) {
   }
 }
 
-function currentTimestamp() {
-  return Math.floor(Date.now() / 1000);
-}
-
-async function fetchAndDisplayLogEntries(since) {
-  // Fetch log entries since the current timestamp
-  const logsUrl = apiUrl + "/logs";
-
-  const options = since ? { query: { since: since } } : {};
-  const logs = (await fetchData(logsUrl, options)).logs;
-
-  // Display the fetched log entries using the displayLogEntry function
-  logs.forEach((logEntry) => {
-    displayLogEntry(logEntry);
-  });
-}
-
-// Modify the loadApplicationsList function
-async function loadApplicationsList() {
-  const applications = await fetchData(`${apiUrl}/list`);
-  const tbody = document.getElementById("applications-tbody");
-
-  // Clear the existing table content
-  tbody.innerHTML = "";
-
-  // Fill the table with the list of applications
-  for (const app of applications.applications) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="align-middle col-id">${app.id}</td>
-      <td class="align-middle col-telegram">
-        <a href="${app.bot.link}" target="_blank">@${app.bot.username}</a>
-      </td>
-      <td class="align-middle col-telegram-token">${app.telegram_token}</td>
-      <td class="align-middle col-running">${app.running ? "✅" : "❌"}</td>
-      <td class="align-middle col-actions d-flex justify-content-between">
-          <button
-            ${app.running ? "disabled" : ""}
-            class="btn btn-success action-start-app"
-            onclick="startApp('${app.id}')">
-            <i class="bi bi-play"></i> Start
-          </button>
-          <button class="btn btn-primary action-restart-app" onclick="restartApp('${app.id}')">
-            <i class="bi bi-arrow-clockwise"></i> Restart
-          </button>
-          <button class="btn btn-info action-reload-app" onclick="reloadApp('${app.id}')">
-            <i class="bi bi-arrow-repeat"></i> Reload
-          </button>
-          <button
-            ${!app.running ? "disabled" : ""}
-            class="btn btn-warning action-stop-app"
-            onclick="stopApp('${app.id}')">
-            <i class="bi bi-stop"></i> Stop
-          </button>
-          <button
-            class="btn btn-secondary action-stop-app"
-            data-bs-toggle="modal"
-            data-bs-target="#editAppConfigModal"
-            data-bs-app-id="${app.id}">
-              <i class="bi bi-pencil-square"></i> Edit Config
-          </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
+apiSocket.onAny((eventName, response) => {
+  if (response.message !== null && response.message !== undefined) {
+    displayLogEntry("/api", eventName, response.status, response.message);
   }
-}
 
-async function startApp(appId) {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/start_app/${appId}`, {
-    method: "POST",
-  });
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
+  if (response.status === "success") {
+    if (response.data.app_update !== undefined) {
+      appManager.updateAppById(response.data.app_update.id, response.data.app_update);
+    } else if (response.data.apps_update !== undefined) {
+      appManager.updateApps(response.data.apps_update)
+    }
 
-async function restartApp(appId) {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/restart_app/${appId}`, {
-    method: "POST",
-  });
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
+  }
+});
 
-async function reloadApp(appId) {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/reload_app/${appId}`, {
-    method: "POST",
-  });
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
-
-async function stopApp(appId) {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/stop_app/${appId}`, {
-    method: "POST",
-  });
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
-
-async function editConfig(appId, newConfig) {
-  let ts = currentTimestamp();
-  const response = await fetchData(`${apiUrl}/app/${appId}/edit`, {
-    method: "PATCH",
-    data: { new_config: newConfig },
-  });
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-  return response;
-}
+serverSocket.onAny((eventName, response) => {
+  if (response.message !== null && response.message !== undefined) {
+    displayLogEntry("/server", eventName, response.status, response.message);
+  }
+});
 
 const editAppConfigElement = document.getElementById("editAppConfigModal");
 const editAppConfigSave = document.getElementById("editAppConfigSave");
@@ -194,16 +163,18 @@ function postErrorInEditConfigModal(message, type) {
   ].join("");
 }
 
+apiSocket.on("app_edit", (response) => {
+  if (response.status !== "success") {
+    return postErrorInEditConfigModal(response.message, response.status === "error" ? "danger" : "warning");
+  }
+  editAppConfigModal.hide();
+});
+
 editAppConfigSave.addEventListener("click", async () => {
   try {
-    const response = await editConfig(editAppConfigAppId.value, JSON.parse(editAppConfigConfig.value));
-    if (response.status === "success") {
-      editAppConfigModal.hide();
-    } else {
-      postErrorInEditConfigModal(response.message || JSON.stringify(response), "danger");
-    }
+    apiSocket.emit("app_edit", {appId: editAppConfigAppId.value, config: JSON.parse(editAppConfigConfig.value)});
   } catch (error) {
-    postErrorInEditConfigModal(error, "danger");
+    return postErrorInEditConfigModal(`Invalid JSON: ${error}`, "danger");
   }
 });
 
@@ -216,54 +187,12 @@ editAppConfigElement.addEventListener("show.bs.modal", async (event) => {
   // Extract info from data-bs-* attributes
   const appId = button.getAttribute("data-bs-app-id");
 
-  const response = await fetchData(`${apiUrl}/app/${appId}`);
-
-  if (response.data === undefined) {
-    postErrorInEditConfigModal(`Could not load app config for ${appId}`, "danger");
-    displayLogEntry({
-      text: `Could not load app config for ${appId}`,
-      status: "error",
-      timestamp: currentTimestamp(),
-    });
-    return;
-  }
-
-  const application = response.data;
+  const app = appManager.getAppById(appId);
 
   // Update the modal's content.
   const modalTitle = editAppConfigElement.querySelector(".modal-title");
-  modalTitle.textContent = `Edit config for @${application.bot.username}`;
+  modalTitle.textContent = `Edit config for @${app.bot.username}`;
 
-  editAppConfigAppId.value = application.id;
-  editAppConfigConfig.value = JSON.stringify(application.config, null, 4);
+  editAppConfigAppId.value = app.id;
+  editAppConfigConfig.value = JSON.stringify(app.config, null, 4);
 });
-
-async function shutdown() {
-  await fetchData(`${apiUrl}/shutdown`);
-}
-
-async function reloadConfig() {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/reload_config`);
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
-
-async function startAll() {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/start_all`);
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
-
-async function stopAll() {
-  let ts = currentTimestamp();
-  await fetchData(`${apiUrl}/stop_all`);
-  fetchAndDisplayLogEntries(ts);
-  loadApplicationsList();
-}
-
-// Call the loadApplicationsList function when the page loads
-loadApplicationsList();
-fetchAndDisplayLogEntries();
-setInterval(loadApplicationsList, 5000);

@@ -14,31 +14,31 @@
       <h1>Telegram Bots Manager</h1>
       <div id="global-actions" class="mt-5 row">
         <div class="col-auto">
-          <button id="start-all" class="btn btn-success" onclick="startAll()">
+          <button id="start-all" class="btn btn-success" onclick="apiSocket.emit('apps_start')">
             <i class="bi bi-play"></i>
             Start All Bots
           </button>
         </div>
         <div class="col-auto">
-          <button id="restart-all" class="btn btn-primary" onclick="restartAll()">
+          <button id="restart-all" class="btn btn-primary" onclick="apiSocket.emit('apps_restart')">
             <i class="bi bi-arrow-clockwise"></i>
             Restart All Bots
           </button>
         </div>
         <div class="col-auto">
-          <button id="reload-config" class="btn btn-info" onclick="reloadConfig()">
+          <button id="reload-config" class="btn btn-info" onclick="apiSocket.emit('apps_reload')">
             <i class="bi bi-arrow-repeat"></i>
             Reload Config
           </button>
         </div>
         <div class="col-auto">
-          <button id="stop-all" class="btn btn-warning" onclick="stopAll()">
+          <button id="stop-all" class="btn btn-warning" onclick="apiSocket.emit('apps_stop')">
             <i class="bi bi-stop"></i>
             Stop All Bots
           </button>
         </div>
         <div class="col-auto">
-          <button id="shutdown" class="btn btn-danger" onclick="shutdown()">
+          <button id="shutdown" class="btn btn-danger" onclick="serverSocket.emit('shutdown')">
             <i class="bi bi-x"></i>
             Shutdown
           </button>
@@ -104,6 +104,7 @@
     </div>
 
     <script src="/static/bootstrap/js/bootstrap.min.js"></script>
+    <script src="/static/socket.io/socket.io.min.js"></script>
     <script src="/static/main.js"></script>
   </body>
 </html>

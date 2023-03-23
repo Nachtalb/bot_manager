@@ -1,189 +1,168 @@
 import asyncio
-from importlib import reload
 import json
-import os
 from pathlib import Path
-import signal
 from typing import Any
 
-from fastapi import APIRouter
 from pydantic import ValidationError
 
-from bots.applications import applications, _base
-from bots.applications import reload_app as reload_application
-from bots.applications import destroy_all as destroy_all_applications
-from bots.applications import load_applications
-from bots.applications import start_all as start_all_applications
-from bots.applications import stop_all as stop_all_applications
-from bots.config import Config, config
-from bots.log import log, runtime_logs
-from bots.utils import safe_error
-
-router = APIRouter()
-
+from bots.applications import _base, app_manager
+from bots.config import ApplicationConfig, config
+from bots.utils import Namespace, serialised_dict
 
 sync_lock = asyncio.Lock()
 
 
-@router.get("/shutdown")
-@safe_error
-async def shutdown_server():
-    await destroy_all_applications()
-    os.kill(os.getpid(), signal.SIGINT)
+class ApiNamespace(Namespace):
+    namespace = "/api"
 
+    async def app_info(self, app: _base.Application) -> dict[str, Any]:
+        bot = await app.get_me()
+        bot_dict = bot.to_dict()
+        bot_dict["link"] = bot.link
 
-@router.get("/logs")
-@safe_error
-@log(ignore_incoming=True)
-async def list_logs(since: int = 0):
-    filtered_logs = runtime_logs
-    if since:
-        filtered_logs = tuple(entry for entry in runtime_logs if entry["timestamp"] >= since)
+        return {
+            "id": app.id,
+            "telegram_token": app.config.telegram_token,
+            "running": app.running,
+            "bot": bot_dict,
+            "config": json.loads(app.arguments.json()),
+        }
 
-    return {"status": "success", "logs": filtered_logs}
+    async def apps_info(self) -> list[dict[str, Any]]:
+        return [await self.app_info(app) for app in app_manager.apps.values()]
 
+    async def on_connect(self, sid: str, environ: dict) -> None:
+        await super().on_connect(sid, environ)
+        await self.emit_success("connect", "Connection established", {"apps_update": await self.apps_info()})
 
-@router.get("/reload_config")
-@safe_error
-@log()
-async def reload_config():
-    async with sync_lock:
-        active = [id for id, app in applications.items() if app.running]
-        await destroy_all_applications()
-        reload(_base)
-        new_config = Config.parse_file("config.json")
-        config.app_configs = new_config.app_configs
-        await load_applications()
-        asyncio.gather(*[app.start_application() for id, app in applications.items() if id in active])
-        return {"status": "success"}
+    # ================
+    # ACTIONS ALL APPS
+    # ================
 
+    async def on_apps_reload(self, _: str):
+        async with sync_lock:
+            await app_manager.reload_all()
 
-@router.get("/start_all")
-@safe_error
-@log()
-async def start_all():
-    await start_all_applications()
-    return {"status": "success"}
+        await self.emit_success("apps_reload", "Apps reloaded", {"apps_update": await self.apps_info()})
 
+    async def on_apps_restart(self, _: str):
+        async with sync_lock:
+            await app_manager.restart_all()
+        await self.emit_success("apps_restart", "Apps restarted", {"apps_update": await self.apps_info()})
 
-@router.get("/stop_all")
-@safe_error
-@log()
-async def stop_all():
-    await stop_all_applications()
-    return {"status": "success"}
+    async def on_apps_start(self, _: str):
+        async with sync_lock:
+            await app_manager.start_all()
+        await self.emit_success("apps_start", "Apps started", {"apps_update": await self.apps_info()})
 
+    async def on_apps_stop(self, _: str):
+        async with sync_lock:
+            await app_manager.stop_all()
+        await self.emit_success("apps_stop", "Apps stopped", {"apps_update": await self.apps_info()})
 
-@router.post("/start_app/{app_id}")
-@safe_error
-@log(["app_id"])
-async def start_app(app_id: str):
-    try:
-        app = applications[app_id]
-        await app.start_application()
-        return {"status": "success", "message": f"Started app with ID {app_id}"}
-    except IndexError:
-        return {"status": "error", "message": f"No app found with ID {app_id}"}
+    # ==================
+    # ACTIONS SINGLE APP
+    # ==================
 
+    async def get_app_or_send_error(self, event: str, sid: str, app_id: str | None) -> _base.Application | None:
+        if app_id and (app := app_manager.apps.get(app_id)):
+            return app
+        await self.emit_error(event, message=f"App with ID {app_id} not found!", sid=sid)
 
-@router.post("/restart_app/{app_id}")
-@safe_error
-@log(["app_id"])
-async def restart_app(app_id: str):
-    try:
-        app = applications[app_id]
-        await app.stop_application()
-        await app.start_application()
-        return {"status": "success", "message": f"Restarted app with ID {app_id}"}
-    except IndexError:
-        return {"status": "error", "message": f"No app found with ID {app_id}"}
-
-
-@router.post("/reload_app/{app_id}")
-@safe_error
-@log(["app_id"])
-async def reload_app(app_id: str):
-    if app_id not in applications:
-        return {"status": "error", "message": f"No app found with ID {app_id}"}
-    async with sync_lock:
-        await reload_application(app_id)
-    return {"status": "success", "message": f"Reloaded app with ID {app_id}"}
-
-
-@router.post("/stop_app/{app_id}")
-@safe_error
-@log(["app_id"])
-async def stop_app(app_id: str):
-    try:
-        app = applications[app_id]
-        await app.stop_application()
-        return {"status": "success", "message": f"Stopped app with ID {app_id}"}
-    except IndexError:
-        return {"status": "error", "message": f"No app found with ID {app_id}"}
-
-
-@router.get("/list")
-@safe_error
-@log(ignore_incoming=True)
-async def list_applications():
-    async with sync_lock:
-        return {"status": "success", "applications": [await _app_info(app) for app in applications.values()]}
-
-
-async def _app_info(app: _base.ApplicationWrapper) -> dict[str, Any]:
-    bot = await app.get_bot()
-    bot_dict = bot.to_dict()
-    bot_dict["link"] = bot.link
-
-    return {
-        "id": app.id,
-        "telegram_token": app.config.telegram_token,
-        "running": app.running,
-        "bot": bot_dict,
-        "config": json.loads(app.arguments.json()),
-    }
-
-
-@router.get("/app/{app_id}")
-@safe_error
-@log(ignore_incoming=True)
-async def get_app(app_id: str):
-    app = applications.get(app_id)
-    if not app:
-        return {"status": "error", "message": f"No app found with ID {app_id}"}
-
-    return {"status": "success", "data": await _app_info(app)}
-
-
-@router.patch("/app/{app_id}/edit")
-@safe_error
-@log(["app_id", "data"])
-async def edit_config(app_id: str, data: dict):
-    async with sync_lock:
-        new_config = data.get("new_config")
-        if new_config is None:
-            return {"status": "error", "message": "New config is empty"}
-
-        app = applications.get(app_id)
+    async def on_app_reload(self, sid: str, data: dict):
+        app = await self.get_app_or_send_error("app_reload", sid, data.get("appId"))
         if not app:
-            return {"status": "error", "message": f"Bo app found with ID {app_id}"}
+            return
+
+        async with sync_lock:
+            await app.reload()
+
+        await self.emit_success("app_reload", f"App {app.id} reloaded", {"app_update": await self.app_info(app)})
+
+    async def on_app_restart(self, sid: str, data: dict):
+        app = await self.get_app_or_send_error("app_restart", sid, data.get("appId"))
+        if not app:
+            return
+
+        async with sync_lock:
+            await app.restart()
+
+        await self.emit_success("app_restart", f"App {app.id} restarted", {"app_update": await self.app_info(app)})
+
+    async def on_app_start(self, sid: str, data: dict):
+        app = await self.get_app_or_send_error("app_start", sid, data.get("appId"))
+        if not app:
+            return
+
+        async with sync_lock:
+            await app.start()
+
+        await self.emit_success("app_start", f"App {app.id} started", {"app_update": await self.app_info(app)})
+
+    async def on_app_stop(self, sid: str, data: dict):
+        app = await self.get_app_or_send_error("app_stop", sid, data.get("appId"))
+        if not app:
+            return
+
+        async with sync_lock:
+            await app.stop()
+
+        await self.emit_success("app_stop", f"App {app.id} stopped", {"app_update": await self.app_info(app)})
+
+    async def on_app_edit(self, sid: str, data: dict):
+        app_id = data.get("appId")
+        app = await self.get_app_or_send_error("app_edit", sid, app_id)
+        if not app:
+            return
+
+        new_config = data.get("config")
+        if new_config is None:
+            return await self.emit_error("app_edit", message='"config" not set!')
+        old_config = serialised_dict(app.arguments, exclude_defaults=True)
 
         try:
             parsed_config = app.Arguments.parse_obj(new_config)
         except ValidationError as error:
-            return {"status": "error", "message": str(error)}
+            return await self.emit_error("app_edit", message=f"Config validation error: {error}")
 
-        app_config = next(a_config for a_config in config.app_configs if a_config.id == app_id)
+        if app.arguments == parsed_config:
+            return await self.emit_warning("app_edit", "Nothing has changed")
 
-        arg_dict = parsed_config.dict()
-        for name, value in parsed_config.__fields__.items():
-            if getattr(parsed_config, name) == value.default:
-                arg_dict.pop(name)
+        async with sync_lock:
+            app_config: ApplicationConfig = config.app_config(app_id)  # pyright: ignore[reportGeneralTypeIssues]
+            app_config.arguments = serialised_dict(parsed_config, exclude_defaults=True)
 
-        app_config.arguments = arg_dict
+            config.set_app_config(app_config)
 
-        Path("config.json").write_text(config.json(ensure_ascii=False, sort_keys=True, indent=4))
+            Path("config.json").write_text(config.json(ensure_ascii=False, sort_keys=True, indent=2))
 
-        await reload_application(app_id)
+            app = await app.reload()
 
-    return {"status": "success", "data": await _app_info(app)}
+        await self.emit_success(
+            "app_edit",
+            f"App {app.id} edited and reloaded",
+            {
+                "app_update": await self.app_info(app),
+                "new_config": serialised_dict(app.arguments, exclude_defaults=True),
+                "old_config": old_config,
+            },
+        )
+
+    # ====
+    # READ
+    # ====
+
+    async def on_apps_config(self, _: str):
+        async with sync_lock:
+            await self.emit_success(
+                "all_app_configs",
+                "All app info retrieved",
+                {"apps_update": [await self.app_info(app) for app in app_manager.apps.values()]},
+            )
+
+    async def on_app_config(self, sid: str, data: dict):
+        app = await self.get_app_or_send_error("app_config", sid, data.get("appId"))
+        if not app:
+            return
+
+        await self.emit_success("single_app_config", "App info retrieved", {"app_update": await self.app_info(app)})

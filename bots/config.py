@@ -3,6 +3,8 @@ from typing import Any
 from pydantic import BaseModel
 import logging
 
+CONFIG_FILE = "config.json"
+
 
 class ApplicationConfig(BaseModel):
     id: str
@@ -38,5 +40,17 @@ class Config(BaseModel):
     def web_log_level_int(self):
         return self._log_level_int(self.web_log_level)
 
+    def app_config(self, id: str) -> ApplicationConfig | None:
+        for app_config in self.app_configs:
+            if app_config.id == id:
+                return app_config
 
-config = Config.parse_file("config.json")
+    def set_app_config(self, app: ApplicationConfig) -> bool:
+        for index, app_config in enumerate(self.app_configs[:]):
+            if app_config.id == app.id:
+                self.app_configs[index] = app
+                return True
+        return False
+
+
+config = Config.parse_file(CONFIG_FILE)

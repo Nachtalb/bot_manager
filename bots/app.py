@@ -1,21 +1,22 @@
 import asyncio
 import logging
+import os
+import signal
 import time
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi_socketio import SocketManager
 
-from bots.api import router
-from bots.applications import applications
-from bots.applications import destroy_all as destroy_all_applications
-from bots.applications import load_applications
+from bots.api import ApiNamespace
+from bots.applications import app_manager
 from bots.config import config
 from bots.log import LogEntry, runtime_logs
+from bots.utils import Namespace
 
 app = FastAPI()
-
-app.include_router(router)
+manager: SocketManager = SocketManager(app)
 
 logging.basicConfig(
     level=config.global_log_level_int,
@@ -40,14 +41,31 @@ async def get_index():
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    await destroy_all_applications()
+    await app_manager.destroy_all()
 
 
 @app.on_event("startup")
 async def on_startup():
-    await load_applications()
-    for task in asyncio.as_completed([app.start_application() for app in applications.values() if app.auto_start]):
+    apps = await app_manager.load_all()
+    for task in asyncio.as_completed([app.start() for app in apps if app.auto_start]):
         app = await task
         entry = LogEntry(text=f"{app.name} auto started", status="success", timestamp=int(time.time()))
         logger.info(entry["text"])
         runtime_logs.append(entry)
+
+
+class ServerNamespace(Namespace):
+    namespace = "/server"
+
+    async def on_connect(self, sid: str, environ: dict) -> None:
+        await super().on_connect(sid, environ)
+        await self.emit_success("connect", "Connection established")
+
+    async def on_shutdown(self, _: str):
+        await app_manager.destroy_all()
+        await self.emit_success("shutdown", "Stopped all apps and shutting down now...")
+        os.kill(os.getpid(), signal.SIGINT)
+
+
+app.sio.register_namespace(ServerNamespace())  # pyright: ignore[reportGeneralTypeIssues]
+app.sio.register_namespace(ApiNamespace())  # pyright: ignore[reportGeneralTypeIssues]
