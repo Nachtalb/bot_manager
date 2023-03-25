@@ -6,6 +6,9 @@ from pydantic.json import ENCODERS_BY_TYPE
 if TYPE_CHECKING:
     from pydantic.typing import AbstractSetIntStr, MappingIntStrAny
 
+SimpleJsonDataType = Union[str, float, int, None]
+JsonDataType = Union[SimpleJsonDataType, list[SimpleJsonDataType], dict[str, SimpleJsonDataType]]
+
 
 def serialised_dict(
     obj: BaseModel,
@@ -17,7 +20,7 @@ def serialised_dict(
     exclude_unset: bool = False,
     exclude_defaults: bool = False,
     exclude_none: bool = False,
-) -> dict[str, Any]:
+) -> dict[str, JsonDataType]:
     data = obj.dict(
         include=include,
         exclude=exclude,
@@ -27,12 +30,15 @@ def serialised_dict(
         exclude_defaults=exclude_defaults,
         exclude_none=exclude_none,
     )
-
     for key, value in data.items():
-        for base in value.__class__.__mro__[:-1]:
-            try:
-                encoder = ENCODERS_BY_TYPE[base]
-            except KeyError:
-                continue
-            data[key] = encoder(value)
+        data[key] = serialise_value(value)
     return data
+
+
+def serialise_value(value: Any) -> JsonDataType:
+    for base in value.__class__.__mro__[:-1]:
+        try:
+            encoder = ENCODERS_BY_TYPE[base]
+        except KeyError:
+            continue
+        return encoder(value)

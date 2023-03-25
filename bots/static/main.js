@@ -213,10 +213,11 @@ editAppConfig.addEventListener("show.bs.modal", async (event) => {
         const item = app.fields[key];
         const tr = document.createElement("tr");
         tr.innerHTML = `
+          <td>${item.required ? "✅" : "❌"}</td>
           <td>${key}</td>
           <td>${item.type}</td>
-          <td>${item.default}</td>
-          <td>${item.required ? "✅" : "❌"}</td>
+          <td class="text-break"><code>${item.default}</code></td>
+          <td class="text-break"><code>${item.current}</code></td>
         `;
         editAppConfigFieldsTable.appendChild(tr);
       }

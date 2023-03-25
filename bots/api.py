@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from bots.applications import _base, app_manager
 from bots.config import ApplicationConfig, config
-from bots.utils import Namespace, serialised_dict
+from bots.utils import Namespace, serialise_value, serialised_dict
 
 sync_lock = asyncio.Lock()
 
@@ -25,17 +25,20 @@ class ApiNamespace(Namespace):
         if bases:
             type += f"[{bases}]"
 
+        config = json.loads(app.arguments.json(exclude_defaults=True))
+
         return {
             "id": app.id,
             "telegram_token": app.config.telegram_token,
             "running": app.running,
             "bot": bot_dict,
             "type": type,
-            "config": json.loads(app.arguments.json(exclude_defaults=True)),
+            "config": config,
             "fields": {
                 name: {
                     "type": field.type_.__name__,
-                    "default": field.get_default(),
+                    "default": serialise_value(field.get_default()),
+                    "current": config[field.name],
                     "required": field.required,
                 }
                 for name, field in app.Arguments.__fields__.items()
