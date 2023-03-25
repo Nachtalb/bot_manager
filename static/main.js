@@ -118,6 +118,7 @@ function displayLogEntry(namespace, event, status, message) {
 
   // Set the log entry content
   logEntry.textContent = `[${namespace}/${event}] Status: ${status.toUpperCase()}, Message: ${message}`;
+  logEntry.classList.add("log-ns-" + namespace.substring(1));
 
   logHistory.appendChild(logEntry);
   if (isScrolledToBottom) {
@@ -195,4 +196,9 @@ editAppConfigElement.addEventListener("show.bs.modal", async (event) => {
 
   editAppConfigAppId.value = app.id;
   editAppConfigConfig.value = JSON.stringify(app.config, null, 4);
+});
+
+const serverLogsShown = document.getElementById("serverLogsShown");
+serverLogsShown.addEventListener("change", () => {
+  logHistory.scrollTop = logHistory.scrollHeight;
 });

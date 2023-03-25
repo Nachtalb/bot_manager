@@ -28,3 +28,7 @@
   color: inherit;
   text-shadow: none;
 }
+
+#serverLogsShown:not(:checked) + label + pre .log-ns-server {
+  display: none;
+}
