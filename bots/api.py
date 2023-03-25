@@ -20,11 +20,17 @@ class ApiNamespace(Namespace):
         bot_dict = bot.to_dict()
         bot_dict["link"] = bot.link
 
+        type = app.__class__.__name__
+        bases = ", ".join([base.__name__ for base in app.__class__.__bases__ if base != _base.Application])
+        if bases:
+            type += f"[{bases}]"
+
         return {
             "id": app.id,
             "telegram_token": app.config.telegram_token,
             "running": app.running,
             "bot": bot_dict,
+            "type": type,
             "config": json.loads(app.arguments.json(exclude_defaults=True)),
             "fields": {
                 name: {

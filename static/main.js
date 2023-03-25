@@ -149,6 +149,7 @@ serverSocket.onAny((eventName, response) => {
 
 const editAppConfig = document.getElementById("editAppConfigModal");
 const editAppConfigAppId = editAppConfig.querySelector("#editAppConfigAppId");
+const editAppConfigType = editAppConfig.querySelector("#editAppConfigType");
 const editAppConfigFieldsTable = editAppConfig.querySelector("#editAppConfigFields tbody");
 const editAppConfigConfig = editAppConfig.querySelector("#editAppConfigConfigInput");
 const editAppConfigSave = editAppConfig.querySelector("#editAppConfigSave");
@@ -194,7 +195,8 @@ editAppConfig.addEventListener("show.bs.modal", async (event) => {
   const modalTitle = editAppConfig.querySelector(".modal-title");
   modalTitle.textContent = `Edit config for @${app.bot.username}`;
 
-  editAppConfig.querySelector("#editAppConfigAppId").value = app.id;
+  editAppConfigAppId.value = app.id;
+  editAppConfigType.value = app.type;
 
   if (Object.keys(app.fields).length === 0) {
     // No config
