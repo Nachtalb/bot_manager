@@ -39,7 +39,7 @@ class ApiNamespace(Namespace):
                     "type": field.type_.__name__,
                     "help": field.field_info.description,
                     "default": serialise_value(field.get_default()),
-                    "current": config[field.name],
+                    "current": config.get(field.name, serialise_value(field.get_default())),
                     "required": field.required,
                 }
                 for name, field in app.Arguments.__fields__.items()
