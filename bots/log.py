@@ -1,6 +1,7 @@
 import functools
 import logging
 import time
+from asyncio import Queue
 from typing import TypedDict
 
 from bots.config import config
@@ -26,6 +27,29 @@ class EndpointFilter(logging.Filter):
 
 # Filter out /endpoint
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+
+
+class SocketLogHandler(logging.Handler):
+    def __init__(self, level=logging.NOTSET) -> None:
+        super().__init__(level)
+
+        self.queue = Queue()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        status = (
+            "error"
+            if record.levelno >= logging.ERROR
+            else ("warning" if record.levelno >= logging.WARNING else "success")
+        )
+        self.queue.put_nowait(
+            {
+                "status": status,
+                "message": self.format(record),
+                "data": {
+                    "timestamp": int(record.created),
+                },
+            }
+        )
 
 
 def log(arg_names: list[str] = [], ignore_incoming: bool = False):

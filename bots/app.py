@@ -12,16 +12,19 @@ from fastapi_socketio import SocketManager
 from bots.api import ApiNamespace
 from bots.applications import app_manager
 from bots.config import config
-from bots.log import LogEntry, runtime_logs
+from bots.log import LogEntry, SocketLogHandler, runtime_logs
 from bots.utils import Namespace
 
 app = FastAPI()
 manager: SocketManager = SocketManager(app)
 
+socket_log_handler = SocketLogHandler()
+socket_log_handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+
 logging.basicConfig(
     level=config.global_log_level_int,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler()],
+    handlers=[logging.StreamHandler(), socket_log_handler],
 )
 
 logger = logging.getLogger("bot_manager")
@@ -57,6 +60,21 @@ async def on_startup():
 class ServerNamespace(Namespace):
     namespace = "/server"
 
+    def __init__(self, log_queue: asyncio.Queue, namespace=None):
+        super().__init__(namespace)
+
+        self.log_queue = log_queue
+        self.log_emitter = asyncio.create_task(self.log_emitter_loop())
+
+    async def log_emitter_loop(self):
+        try:
+            while True:
+                item: dict = await self.log_queue.get()
+                await self.emit_default("log", **item)
+                self.log_queue.task_done()
+        except asyncio.CancelledError:
+            pass
+
     async def on_connect(self, sid: str, environ: dict) -> None:
         await super().on_connect(sid, environ)
         await self.emit_success("connect", "Connection established")
@@ -67,5 +85,5 @@ class ServerNamespace(Namespace):
         os.kill(os.getpid(), signal.SIGINT)
 
 
-app.sio.register_namespace(ServerNamespace())  # pyright: ignore[reportGeneralTypeIssues]
+app.sio.register_namespace(ServerNamespace(socket_log_handler.queue))  # pyright: ignore[reportGeneralTypeIssues]
 app.sio.register_namespace(ApiNamespace())  # pyright: ignore[reportGeneralTypeIssues]
