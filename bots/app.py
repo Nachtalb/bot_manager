@@ -14,6 +14,9 @@ from bots.applications import app_manager
 from bots.config import config
 from bots.log import LogEntry, SocketLogHandler, runtime_logs
 from bots.utils import Namespace
+import importlib.resources
+
+HERE = importlib.resources.files("bots")
 
 app = FastAPI()
 manager: SocketManager = SocketManager(app)
@@ -32,14 +35,12 @@ logger.setLevel(config.local_log_level_int)
 
 
 # Add these lines to serve the 'index.html' file from the 'static' folder
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
-    with open("public/index.html", "r") as f:
-        content = f.read()
-    return content
+    return (HERE / "public/index.html").read_text()
 
 
 @app.on_event("shutdown")
