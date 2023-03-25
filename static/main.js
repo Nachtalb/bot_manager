@@ -147,16 +147,16 @@ serverSocket.onAny((eventName, response) => {
   }
 });
 
-const editAppConfigElement = document.getElementById("editAppConfigModal");
-const editAppConfigSave = document.getElementById("editAppConfigSave");
-const editAppConfigErrors = document.getElementById("editAppConfigErrors");
-const editAppConfigAppId = editAppConfigElement.querySelector(".modal-body input");
-const editAppConfigConfig = editAppConfigElement.querySelector(".modal-body textarea");
+const editAppConfig = document.getElementById("editAppConfigModal");
+const editAppConfigAppId = editAppConfig.querySelector("#editAppConfigAppId");
+const editAppConfigFieldsTable = editAppConfig.querySelector("#editAppConfigFields tbody");
+const editAppConfigConfig = editAppConfig.querySelector("#editAppConfigConfigInput");
+const editAppConfigSave = editAppConfig.querySelector("#editAppConfigSave");
 
-const editAppConfigModal = new bootstrap.Modal(editAppConfigElement);
+const editAppConfigModal = new bootstrap.Modal(editAppConfig);
 
 function postErrorInEditConfigModal(message, type) {
-  editAppConfigErrors.innerHTML = [
+  editAppConfig.querySelector("#editAppConfigErrors").innerHTML = [
     `<div class="alert alert-${type} alert-dismissible" role="alert">`,
     `   <div>${message}</div>`,
     '   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
@@ -179,8 +179,8 @@ editAppConfigSave.addEventListener("click", async () => {
   }
 });
 
-editAppConfigElement.addEventListener("show.bs.modal", async (event) => {
-  editAppConfigErrors.innerHTML = "";
+editAppConfig.addEventListener("show.bs.modal", async (event) => {
+  editAppConfig.querySelector("#editAppConfigErrors").innerHTML = "";
 
   // Button that triggered the modal
   const button = event.relatedTarget;
@@ -191,11 +191,34 @@ editAppConfigElement.addEventListener("show.bs.modal", async (event) => {
   const app = appManager.getAppById(appId);
 
   // Update the modal's content.
-  const modalTitle = editAppConfigElement.querySelector(".modal-title");
+  const modalTitle = editAppConfig.querySelector(".modal-title");
   modalTitle.textContent = `Edit config for @${app.bot.username}`;
 
-  editAppConfigAppId.value = app.id;
-  editAppConfigConfig.value = JSON.stringify(app.config, null, 4);
+  editAppConfig.querySelector("#editAppConfigAppId").value = app.id;
+
+  if (Object.keys(app.fields).length === 0) {
+    // No config
+    editAppConfig.classList.add("no-config");
+  } else {
+    editAppConfig.classList.remove("no-config");
+
+    editAppConfigFieldsTable.innerHTML = "";
+    for (const key in app.fields) {
+      if (app.fields.hasOwnProperty(key)) {
+        const item = app.fields[key];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${key}</td>
+          <td>${item.type}</td>
+          <td>${item.default}</td>
+          <td>${item.required ? "✅" : "❌"}</td>
+        `;
+        editAppConfigFieldsTable.appendChild(tr);
+      }
+    }
+
+    editAppConfigConfig.value = JSON.stringify(app.config, null, 4);
+  }
 });
 
 const serverLogsShown = document.getElementById("serverLogsShown");

@@ -25,7 +25,15 @@ class ApiNamespace(Namespace):
             "telegram_token": app.config.telegram_token,
             "running": app.running,
             "bot": bot_dict,
-            "config": json.loads(app.arguments.json()),
+            "config": json.loads(app.arguments.json(exclude_defaults=True)),
+            "fields": {
+                name: {
+                    "type": field.type_.__name__,
+                    "default": field.get_default(),
+                    "required": field.required,
+                }
+                for name, field in app.Arguments.__fields__.items()
+            },
         }
 
     async def apps_info(self) -> list[dict[str, Any]]:
@@ -75,7 +83,7 @@ class ApiNamespace(Namespace):
             return
 
         async with sync_lock:
-            await app.reload()
+            app = await app.reload()
 
         await self.emit_success("app_reload", f"App {app.id} reloaded", {"app_update": await self.app_info(app)})
 

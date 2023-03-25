@@ -89,12 +89,28 @@
             <div id="editAppConfigErrors"></div>
             <form>
               <div class="mb-3">
-                <label for="appId-name" class="col-form-label">App ID:</label>
-                <input type="text" class="form-control" id="appId-name" disabled />
+                <label for="editAppConfigAppId" class="col-form-label">App ID:</label>
+                <input type="text" class="form-control" id="editAppConfigAppId" disabled />
               </div>
-              <div class="mb-3">
-                <label for="config-text" class="col-form-label">Config:</label>
-                <textarea rows="15" class="form-control" id="config-text"></textarea>
+              <div class="mb-3" id="editAppConfigFields">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Required</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <p>This application doesn't have any config parameters.</p>
+              </div>
+              <div class="mb-3" id="editAppConfigConfig">
+                <label for="editAppConfigConfigInput" class="col-form-label">Config:</label>
+                <textarea rows="15" class="form-control" id="editAppConfigConfigInput"></textarea>
               </div>
             </form>
           </div>

@@ -32,3 +32,14 @@
 #serverLogsShown:not(:checked) + label + pre .log-ns-server {
   display: none;
 }
+
+#editAppConfigModal #editAppConfigFields p,
+#editAppConfigModal.no-config #editAppConfigFields .table-responsive,
+#editAppConfigModal.no-config #editAppConfigConfig,
+#editAppConfigModal.no-config #editAppConfigSave {
+  display: none;
+}
+
+#editAppConfigModal.no-config #editAppConfigFields p {
+  display: block;
+}
