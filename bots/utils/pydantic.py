@@ -6,11 +6,12 @@ from pydantic.json import ENCODERS_BY_TYPE
 if TYPE_CHECKING:
     from pydantic.typing import AbstractSetIntStr, MappingIntStrAny
 
-SimpleJsonDataType = Union[str, float, int, None]
-JsonDataType = Union[SimpleJsonDataType, list[SimpleJsonDataType], dict[str, SimpleJsonDataType]]
+JsonSerialisableData = Union[
+    str, int, float, bool, None, dict[str, "JsonSerialisableData"], list["JsonSerialisableData"]
+]
 
 
-def serialise_dict(
+def serialise_model(
     obj: BaseModel,
     *,
     include: Optional[Union["AbstractSetIntStr", "MappingIntStrAny"]] = None,
@@ -20,7 +21,7 @@ def serialise_dict(
     exclude_unset: bool = False,
     exclude_defaults: bool = False,
     exclude_none: bool = False,
-) -> dict[str, JsonDataType]:
+) -> JsonSerialisableData:
     data = obj.dict(
         include=include,
         exclude=exclude,
@@ -30,15 +31,21 @@ def serialise_dict(
         exclude_defaults=exclude_defaults,
         exclude_none=exclude_none,
     )
-    for key, value in data.items():
-        data[key] = serialise_value(value)
-    return data
+    return serialise(data)
 
 
-def serialise_value(value: Any) -> JsonDataType:
-    for base in value.__class__.__mro__[:-1]:
-        try:
-            encoder = ENCODERS_BY_TYPE[base]
-        except KeyError:
-            continue
-        return encoder(value)
+def serialise(data: Any) -> JsonSerialisableData:
+    match data:
+        case dict():
+            return {item: serialise(value) for item, value in data.items()}
+        case list():
+            return [serialise(item) for item in data]
+        case str() | int() | float() | bool() | None:
+            return data
+        case _:
+            for base in data.__class__.__mro__[:-1]:
+                try:
+                    encoder = ENCODERS_BY_TYPE[base]
+                except KeyError:
+                    continue
+                return encoder(data)

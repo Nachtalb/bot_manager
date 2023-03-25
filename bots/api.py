@@ -1,13 +1,11 @@
 import asyncio
-import json
 from pathlib import Path
-from typing import Any
 
 from pydantic import ValidationError
 
 from bots.applications import _base, app_manager
 from bots.config import ApplicationConfig, config
-from bots.utils import Namespace, serialise_value, serialise_dict
+from bots.utils import Namespace, serialise_model, JsonSerialisableData, serialise
 
 sync_lock = asyncio.Lock()
 
@@ -15,7 +13,7 @@ sync_lock = asyncio.Lock()
 class ApiNamespace(Namespace):
     namespace = "/api"
 
-    async def app_info(self, app: _base.Application) -> dict[str, Any]:
+    async def app_info(self, app: _base.Application) -> JsonSerialisableData:
         bot = await app.get_me()
         bot_dict = bot.to_dict()
         bot_dict["link"] = bot.link
@@ -25,28 +23,30 @@ class ApiNamespace(Namespace):
         if bases:
             type += f"[{bases}]"
 
-        config = json.loads(app.arguments.json(exclude_defaults=True))
+        config = app.arguments.dict(exclude_defaults=True)
 
-        return {
-            "id": app.id,
-            "telegram_token": app.config.telegram_token,
-            "running": app.running,
-            "bot": bot_dict,
-            "type": type,
-            "config": config,
-            "fields": {
-                name: {
-                    "type": field.type_.__name__,
-                    "help": field.field_info.description,
-                    "default": serialise_value(field.get_default()),
-                    "current": config.get(field.name, serialise_value(field.get_default())),
-                    "required": field.required,
-                }
-                for name, field in app.Arguments.__fields__.items()
-            },
-        }
+        return serialise(
+            {
+                "id": app.id,
+                "telegram_token": app.config.telegram_token,
+                "running": app.running,
+                "bot": bot_dict,
+                "type": type,
+                "config": config,
+                "fields": {
+                    name: {
+                        "type": field.type_.__name__,
+                        "help": field.field_info.description,
+                        "default": field.get_default(),
+                        "current": config.get(field.name, field.get_default()),
+                        "required": field.required,
+                    }
+                    for name, field in app.Arguments.__fields__.items()
+                },
+            }
+        )
 
-    async def apps_info(self) -> list[dict[str, Any]]:
+    async def apps_info(self) -> list[JsonSerialisableData]:
         return [await self.app_info(app) for app in app_manager.apps.values()]
 
     async def on_connect(self, sid: str, environ: dict) -> None:
@@ -136,7 +136,7 @@ class ApiNamespace(Namespace):
         new_config = data.get("config")
         if new_config is None:
             return await self.emit_error("app_edit", message='"config" not set!')
-        old_config = serialise_dict(app.arguments, exclude_defaults=True)
+        old_config = serialise_model(app.arguments, exclude_defaults=True)
 
         try:
             parsed_config = app.Arguments.parse_obj(new_config)
@@ -148,8 +148,9 @@ class ApiNamespace(Namespace):
 
         async with sync_lock:
             app_config: ApplicationConfig = config.app_config(app_id)  # pyright: ignore[reportGeneralTypeIssues]
-            app_config.arguments = serialise_dict(parsed_config, exclude_defaults=True)
-
+            app_config.arguments = serialise_model(
+                parsed_config, exclude_defaults=True
+            )  # pyright: ignore[reportGeneralTypeIssues]
             config.set_app_config(app_config)
 
             Path("config.json").write_text(config.json(ensure_ascii=False, sort_keys=True, indent=2))
@@ -161,7 +162,7 @@ class ApiNamespace(Namespace):
             f"App {app.id} edited and reloaded",
             {
                 "app_update": await self.app_info(app),
-                "new_config": serialise_dict(app.arguments, exclude_defaults=True),
+                "new_config": serialise_model(app.arguments, exclude_defaults=True),
                 "old_config": old_config,
             },
         )
