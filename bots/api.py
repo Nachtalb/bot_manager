@@ -166,6 +166,20 @@ class ApiNamespace(Namespace):
             },
         )
 
+    async def on_app_schema(self, sid: str, data: dict):
+        app_id = data.get("appId")
+        app = await self.get_app_or_send_error("app_edit", sid, app_id)
+        if not app:
+            return
+
+        await self.emit_success(
+            "app_schema",
+            f"Got schema for {app.id}",
+            {
+                "schema": app.arguments.schema(),
+            },
+        )
+
     # ====
     # READ
     # ====

@@ -150,19 +150,55 @@ serverSocket.onAny((eventName, response) => {
   }
 });
 
+const schemaModel = document.getElementById("schemaModel");
+const schemaModelErrors = schemaModel.querySelector("#schemaModelErrors");
+const schemaModelAppId = schemaModel.querySelector("#schemaModelAppId");
+const schemaModelAppType = schemaModel.querySelector("#schemaModelAppType");
+const schemaModelSchemaInput = schemaModel.querySelector("#schemaModelSchemaInput");
+const schemaModelBack = schemaModel.querySelectorAll(".edit-app-config-toggle");
+
+schemaModel.addEventListener("show.bs.modal", async (event) => {
+  schemaModelSchemaInput.value = "Loading...";
+
+  schemaModelErrors.innerHTML = "";
+
+  const appId = event.relatedTarget.getAttribute("data-bs-app-id");
+  const app = appManager.getAppById(appId);
+
+  schemaModel.querySelector(".modal-title").textContent = `Config Schema for @${app.bot.username}`;
+
+  schemaModelAppId.value = app.id;
+  schemaModelAppType.value = app.type;
+
+  apiSocket.emit("app_schema", { appId: app.id });
+
+  schemaModelBack.forEach((element) => {
+    element.setAttribute("data-bs-app-id", app.id);
+  });
+});
+
+apiSocket.on("app_schema", (response) => {
+  if (response.status !== "success") {
+    return postErrorIn(schemaModelErrors, response);
+  }
+  schemaModelSchemaInput.value = JSON.stringify(response.data.schema, null, 2);
+});
+
 const editAppConfig = document.getElementById("editAppConfigModal");
 const editAppConfigAppId = editAppConfig.querySelector("#editAppConfigAppId");
 const editAppConfigType = editAppConfig.querySelector("#editAppConfigType");
 const editAppConfigFieldsTable = editAppConfig.querySelector("#editAppConfigFields tbody");
 const editAppConfigConfig = editAppConfig.querySelector("#editAppConfigConfigInput");
+const editAppConfigShowSchema = editAppConfig.querySelector("#editAppConfigShowSchema");
 const editAppConfigSave = editAppConfig.querySelector("#editAppConfigSave");
 
 const editAppConfigModal = new bootstrap.Modal(editAppConfig);
 
-function postErrorInEditConfigModal(message, type) {
-  editAppConfig.querySelector("#editAppConfigErrors").innerHTML = [
+function postErrorIn(element, response) {
+  type = response.status === "error" ? "danger" : "warning";
+  element.innerHTML = [
     `<div class="alert alert-${type} alert-dismissible" role="alert">`,
-    `   <div>${message}</div>`,
+    `   <div>${response.message}</div>`,
     '   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
     "</div>",
   ].join("");
@@ -170,7 +206,7 @@ function postErrorInEditConfigModal(message, type) {
 
 apiSocket.on("app_edit", (response) => {
   if (response.status !== "success") {
-    return postErrorInEditConfigModal(response.message, response.status === "error" ? "danger" : "warning");
+    return postErrorIn(editAppConfig.querySelector("#editAppConfigErrors"), response);
   }
   editAppConfigModal.hide();
 });
@@ -200,6 +236,7 @@ editAppConfig.addEventListener("show.bs.modal", async (event) => {
 
   editAppConfigAppId.value = app.id;
   editAppConfigType.value = app.type;
+  editAppConfigShowSchema.setAttribute("data-bs-app-id", app.id);
 
   if (Object.keys(app.fields).length === 0) {
     // No config
