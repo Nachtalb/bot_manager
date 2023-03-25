@@ -10,7 +10,7 @@ class Echo(Application):
     class Arguments(Application.Arguments):
         sample_field_1: str = "Foo"
         sample_field_2: int
-        sample_field_3: Path = Field(default_factory=lambda: Path(__file__))
+        sample_field_3: Path = Field(default_factory=lambda: Path(__file__).relative_to(Path().absolute()))
 
     arguments: "Echo.Arguments"
 

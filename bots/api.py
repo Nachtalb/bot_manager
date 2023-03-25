@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from bots.applications import _base, app_manager
 from bots.config import ApplicationConfig, config
-from bots.utils import Namespace, serialise_value, serialised_dict
+from bots.utils import Namespace, serialise_value, serialise_dict
 
 sync_lock = asyncio.Lock()
 
@@ -37,6 +37,7 @@ class ApiNamespace(Namespace):
             "fields": {
                 name: {
                     "type": field.type_.__name__,
+                    "help": field.field_info.description,
                     "default": serialise_value(field.get_default()),
                     "current": config[field.name],
                     "required": field.required,
@@ -135,7 +136,7 @@ class ApiNamespace(Namespace):
         new_config = data.get("config")
         if new_config is None:
             return await self.emit_error("app_edit", message='"config" not set!')
-        old_config = serialised_dict(app.arguments, exclude_defaults=True)
+        old_config = serialise_dict(app.arguments, exclude_defaults=True)
 
         try:
             parsed_config = app.Arguments.parse_obj(new_config)
@@ -147,7 +148,7 @@ class ApiNamespace(Namespace):
 
         async with sync_lock:
             app_config: ApplicationConfig = config.app_config(app_id)  # pyright: ignore[reportGeneralTypeIssues]
-            app_config.arguments = serialised_dict(parsed_config, exclude_defaults=True)
+            app_config.arguments = serialise_dict(parsed_config, exclude_defaults=True)
 
             config.set_app_config(app_config)
 
@@ -160,7 +161,7 @@ class ApiNamespace(Namespace):
             f"App {app.id} edited and reloaded",
             {
                 "app_update": await self.app_info(app),
-                "new_config": serialised_dict(app.arguments, exclude_defaults=True),
+                "new_config": serialise_dict(app.arguments, exclude_defaults=True),
                 "old_config": old_config,
             },
         )

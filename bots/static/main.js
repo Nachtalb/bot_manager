@@ -216,6 +216,7 @@ editAppConfig.addEventListener("show.bs.modal", async (event) => {
           <td>${item.required ? "✅" : "❌"}</td>
           <td>${key}</td>
           <td>${item.type}</td>
+          <td>${item.help || "Not provided"}</td>
           <td class="text-break"><code>${item.default}</code></td>
           <td class="text-break"><code>${item.current}</code></td>
         `;

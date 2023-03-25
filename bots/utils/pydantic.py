@@ -10,7 +10,7 @@ SimpleJsonDataType = Union[str, float, int, None]
 JsonDataType = Union[SimpleJsonDataType, list[SimpleJsonDataType], dict[str, SimpleJsonDataType]]
 
 
-def serialised_dict(
+def serialise_dict(
     obj: BaseModel,
     *,
     include: Optional[Union["AbstractSetIntStr", "MappingIntStrAny"]] = None,
