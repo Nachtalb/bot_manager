@@ -45,34 +45,38 @@ class AppManager {
         </td>
         <td class="align-middle col-telegram-token">${app.telegram_token}</td>
         <td class="align-middle col-running">${app.running ? "✅" : "❌"}</td>
-        <td class="align-middle col-actions d-flex justify-content-between">
+        <td class="align-middle col-actions">
+          <div class="d-flex g-3">
             <button
               ${app.running ? "disabled" : ""}
-              class="btn btn-success action-start-app"
+              class="btn me-2 text-nowrap btn-success action-start-app"
               onclick="apiSocket.emit('app_start', {appId: '${app.id}'})">
               <i class="bi bi-play"></i> Start
             </button>
-            <button class="btn btn-primary action-restart-app" onclick="apiSocket.emit('app_restart', {appId: '${
-              app.id
-            }'})">
+            <button
+              class="btn me-2 text-nowrap btn-primary action-restart-app"
+              onclick="apiSocket.emit('app_restart', {appId: '${app.id}'})">
               <i class="bi bi-arrow-clockwise"></i> Restart
             </button>
-            <button class="btn btn-info action-reload-app" onclick="apiSocket.emit('app_reload', {appId: '${app.id}'})">
+            <button
+              class="btn me-2 text-nowrap btn-info action-reload-app"
+              onclick="apiSocket.emit('app_reload', {appId: '${app.id}'})">
               <i class="bi bi-arrow-repeat"></i> Reload
             </button>
             <button
               ${!app.running ? "disabled" : ""}
-              class="btn btn-warning action-stop-app"
+              class="btn me-2 text-nowrap btn-warning action-stop-app"
               onclick="apiSocket.emit('app_stop', {appId: '${app.id}'})">
               <i class="bi bi-stop"></i> Stop
             </button>
             <button
-              class="btn btn-secondary action-stop-app"
+              class="btn text-nowrap btn-secondary action-stop-app"
               data-bs-toggle="modal"
               data-bs-target="#editAppConfigModal"
               data-bs-app-id="${app.id}">
                 <i class="bi bi-pencil-square"></i> Edit Config
             </button>
+          </div>
         </td>
       `;
 
@@ -94,8 +98,8 @@ class AppManager {
 
 // Usage example:
 const appManager = new AppManager();
-const serverSocket = io(`ws://${window.location.host}/server`, {path: "/ws/socket.io"});
-const apiSocket = io(`ws://${window.location.host}/api`, {path: "/ws/socket.io"});
+const serverSocket = io(`ws://${window.location.host}/server`, { path: "/ws/socket.io" });
+const apiSocket = io(`ws://${window.location.host}/api`, { path: "/ws/socket.io" });
 const logHistory = document.getElementById("log-history-entries");
 
 function displayLogEntry(namespace, event, status, message) {
@@ -135,9 +139,8 @@ apiSocket.onAny((eventName, response) => {
     if (response.data.app_update !== undefined) {
       appManager.updateAppById(response.data.app_update.id, response.data.app_update);
     } else if (response.data.apps_update !== undefined) {
-      appManager.updateApps(response.data.apps_update)
+      appManager.updateApps(response.data.apps_update);
     }
-
   }
 });
 
@@ -174,7 +177,7 @@ apiSocket.on("app_edit", (response) => {
 
 editAppConfigSave.addEventListener("click", async () => {
   try {
-    apiSocket.emit("app_edit", {appId: editAppConfigAppId.value, config: JSON.parse(editAppConfigConfig.value)});
+    apiSocket.emit("app_edit", { appId: editAppConfigAppId.value, config: JSON.parse(editAppConfigConfig.value) });
   } catch (error) {
     return postErrorInEditConfigModal(`Invalid JSON: ${error}`, "danger");
   }
