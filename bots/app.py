@@ -34,6 +34,8 @@ logger = logging.getLogger("bot_manager")
 logger.setLevel(config.local_log_level_int)
 
 
+app_manager.set_server(app)
+
 # Add these lines to serve the 'index.html' file from the 'static' folder
 app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 

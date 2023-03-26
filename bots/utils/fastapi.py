@@ -1,3 +1,4 @@
+from fastapi import APIRouter, FastAPI
 from socketio import AsyncNamespace
 
 from bots.log import logger
@@ -41,3 +42,10 @@ class Namespace(AsyncNamespace):
 
     async def emit_warning(self, event: str, message: str, data: list | dict | None = None, sid: str | None = None):
         await self.emit_default(event, "warning", message, data, sid)
+
+
+def remove_routes(prefix: str, router: APIRouter, app: FastAPI):
+    routes = {route.path: index for index, route in enumerate(app.router.routes)}
+    to_remove = sorted(filter(None, [routes.get(prefix + route.path) for route in router.routes]))
+    for index in to_remove:
+        app.router.routes.pop(index)

@@ -4,18 +4,24 @@ from logging import getLogger
 from types import ModuleType
 from typing import Iterable, Type
 
+from fastapi import FastAPI
 
 from bots.applications._base import Application
 from bots.config import config
+from bots.utils.fastapi import remove_routes
 
 logger = getLogger("application_manager")
 logger.setLevel(config.local_log_level)
 
 
 class AppManager:
+    bot_endpoint_prefix = "/bot"
+
     def __init__(self):
         self._modules: dict[str, ModuleType] = {}
         self.apps: dict[str, Application] = {}
+
+        self.server: FastAPI
 
     def _load_module(self, module_path: str) -> tuple[str, ModuleType]:
         module_path = module_path.split(":", 1)[0]
@@ -40,6 +46,12 @@ class AppManager:
             return getattr(module, name)
         except AttributeError:
             raise ImportError(f"Cannot import name '{name}' from '{module}'", name=module_path, path=module.__file__)
+
+    def set_server(self, server: FastAPI):
+        self.server = server
+
+    def app_namespace_prefix(self, app: Application) -> str:
+        return f"{self.bot_endpoint_prefix}/{app.id}"
 
     # =========
     # LIFECYCLE
@@ -73,6 +85,7 @@ class AppManager:
         Initialize the app via app.initialize() and add the api router to the server
         """
         await app.initialize()
+        self.server.include_router(app.router, prefix=self.app_namespace_prefix(app))
         return app
 
     async def initialize_apps(self, apps: Iterable[Application] = []) -> list[Application]:
@@ -103,6 +116,7 @@ class AppManager:
         Includes filtering the web api requests. It's not possible to remove the
         router due to limitations of FastAPI, but at least we can filter them.
         """
+        remove_routes(self.app_namespace_prefix(app), app.router, self.server)
         await app.shutdown()
         return app
 

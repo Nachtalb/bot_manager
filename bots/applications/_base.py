@@ -1,15 +1,30 @@
 import logging
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from telegram import User
 from telegram.ext import ApplicationBuilder
+from fastapi import APIRouter
 
 from bots.config import ApplicationConfig
 from bots.config import config as global_config
 
 if TYPE_CHECKING:
     from . import AppManager
+
+
+class AppStatus(BaseModel):
+    """The current status of an app
+
+    Includes some relevant data for the app as well as Telegram specific info.
+    """
+
+    id: str = Field(description="")
+    initialized: bool = Field(description="If the app has been initialized")
+    running: bool = Field(description="If the bot is currently running")
+    tg_id: int = Field(description="ID used in Telegram")
+    tg_link: str = Field(description="Telegram t.me link to the bot")
+    tg_name: str = Field(description="Username of the bot in Telegram")
 
 
 class Application:
@@ -33,6 +48,8 @@ class Application:
 
         self.initialized: bool = False
         self.running: bool = False
+
+        self.router: APIRouter = APIRouter()
 
         self.application = ApplicationBuilder().token(self.config.telegram_token).build()
 
@@ -264,3 +281,26 @@ class Application:
         configuration from the config.json.
         """
         return await self.manager.reload_app(self.id)
+
+    # ======
+    # ROUTES
+    # ======
+
+    def add_routes(self):
+        self.router.add_api_route(
+            "/status",
+            methods=["GET"],
+            endpoint=self.status,
+        )
+
+    async def status(self) -> AppStatus:
+        """The current status of the application with the most important info"""
+        bot = await self.get_bot()
+        return AppStatus(
+            id=self.id,
+            initialized=self.initialized,
+            running=self.running,
+            tg_link=bot.link,  # pyright: ignore[reportGeneralTypeIssues]
+            tg_name=bot.name,
+            tg_id=bot.id,
+        )
