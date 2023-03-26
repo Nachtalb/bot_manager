@@ -1,11 +1,12 @@
-import asyncio
 import importlib
+from asyncio import gather
 from logging import getLogger
 from types import ModuleType
 from typing import Iterable, Type
 
+
 from bots.applications._base import Application
-from bots.config import CONFIG_FILE, Config, config
+from bots.config import config
 
 logger = getLogger("application_manager")
 logger.setLevel(config.local_log_level)
@@ -40,23 +41,16 @@ class AppManager:
         except AttributeError:
             raise ImportError(f"Cannot import name '{name}' from '{module}'", name=module_path, path=module.__file__)
 
-    async def start_all(self):
-        await asyncio.gather(*[app.start() for app in self.apps.values()])
+    # =========
+    # LIFECYCLE
+    # =========
 
-    async def stop_all(self):
-        await asyncio.gather(*[app.stop() for app in self.apps.values()])
+    async def load_app(self, app_id: str) -> Application:
+        """Load app into existence
 
-    async def restart_all(self):
-        await self.stop_all()
-        await self.start_all()
-
-    async def destroy(self, app_id: str):
-        app = self.apps[app_id]
-        await app.stop()
-        await app.teardown()
-        del self.apps[app.id]
-
-    async def load(self, app_id: str, run_setup: bool = True) -> Application:
+        Imports or reloads (if already imported) the app module and then
+        creates and app instance.
+        """
         if app_id in self.apps:
             raise ValueError(f"Application already loaded")
 
@@ -65,45 +59,106 @@ class AppManager:
             raise IndexError(f"Application with ID {app_id} not found.")
 
         self.apps[app_config.id] = app = self._get_application_class(app_config.module)(self, app_config)
-        if run_setup:
-            await app.setup()
         return app
 
-    async def load_all(self) -> Iterable[Application]:
-        for app_config in config.app_configs:
-            await self.load(app_config.id, False)
-        await asyncio.gather(*[app.setup() for app in self.apps.values()])
-        return self.apps.values()
+    async def load_apps(self, app_ids: Iterable[str] = []) -> list[Application]:
+        """Load all or given apps into existence"""
+        if not app_ids:
+            app_ids = [app.id for app in config.app_configs]
+        return await gather(*[self.load_app(app) for app in app_ids or self.apps.keys()])
 
-    async def destroy_all(self):
-        await asyncio.gather(*[self.destroy(app_id) for app_id in self.apps])
+    async def initialize_app(self, app: Application) -> Application:
+        """Initialize an app
 
-    async def reload(self, app_id: str):
-        was_on = self.apps[app_id].running
-        await self.destroy(app_id)
-
-        new_app_config = Config.parse_file(CONFIG_FILE).app_config(app_id)
-        if not new_app_config:
-            raise ValueError(f"No config found for app with ID {app_id}")
-
-        config.set_app_config(new_app_config)
-
-        app = await self.load(app_id)
-
-        if was_on:
-            await app.start()
+        Initialize the app via app.initialize() and add the api router to the server
+        """
+        await app.initialize()
         return app
 
-    async def reload_all(self):
-        new_config = Config.parse_file(CONFIG_FILE)
-        for field, value in new_config:
-            setattr(config, field, value)
+    async def initialize_apps(self, apps: Iterable[Application] = []) -> list[Application]:
+        """Initialize all or given apps"""
+        return await gather(*[self.initialize_app(app) for app in apps or self.apps.values()])
 
-        were_on = [app.id for app in self.apps.values() if app.running]
-        await self.destroy_all()
-        await self.load_all()
+    async def start_app(self, app: Application) -> Application:
+        """Start an app"""
+        await app.start()
+        return app
 
-        await asyncio.gather(*[self.apps[app_id].start() for app_id in were_on])
+    async def start_apps(self, apps: Iterable[Application] = []) -> list[Application]:
+        """Start all or given apps"""
+        return await gather(*[self.start_app(app) for app in apps or self.apps.values()])
+
+    async def pause_app(self, app: Application) -> Application:
+        """Pause an app"""
+        await app.pause()
+        return app
+
+    async def pause_apps(self, apps: Iterable[Application] = []) -> list[Application]:
+        """Pause all or given apps"""
+        return await gather(*[self.pause_app(app) for app in apps or self.apps.values()])
+
+    async def shutdown_app(self, app: Application) -> Application:
+        """Shutdown an app
+
+        Includes filtering the web api requests. It's not possible to remove the
+        router due to limitations of FastAPI, but at least we can filter them.
+        """
+        await app.shutdown()
+        return app
+
+    async def shutdown_apps(self, apps: Iterable[Application] = []) -> list[Application]:
+        """Shutdown all or given apps"""
+        return await gather(*[self.shutdown_app(app) for app in apps or self.apps.values()])
+
+    async def destroy_app(self, app_id: str) -> str:
+        """Destroy an app
+
+        Shutdown the app then completely delete it
+        """
+        app = self.apps[app_id]
+        await self.shutdown_app(app)
+        del self.apps[app.id]
+        return app_id
+
+    async def destroy_apps(self, app_ids: Iterable[str] = []) -> list[Application]:
+        """Destroy all or given apps"""
+        return await gather(*[self.destroy_app(app) for app in app_ids or self.apps.keys()])
+
+    async def _pure_reload_app(self, app_id: str) -> Application:
+        """Destroy and load an app"""
+        await self.destroy_app(app_id)
+        return await self.load_app(app_id)
+
+    async def reload_app(self, app_id: str, update_config: bool = True) -> Application:
+        """Reload and app
+
+        Update app config if needed, then doestroy and reload the app and
+        lastely restart the app if it was started beforehand
+        """
+        if update_config:
+            config.reload_app_config(app_id)
+
+        start_again = self.apps[app_id].running
+        app = await self._pure_reload_app(app_id)
+        await self.initialize_app(app)
+
+        if start_again:
+            await self.start_app(app)
+        return app
+
+    async def reload_apps(self, app_ids: Iterable[str] = []) -> list[Application]:
+        """Reload all or given apps"""
+        running = {app_id: self.apps[app_id].running for app_id in app_ids or self.apps.keys()}
+        if not app_ids:
+            await self.destroy_apps()
+            config.reload_config()
+            apps = await self.load_apps()
+            await self.initialize_apps(apps)
+        else:
+            apps = await gather(*[self.reload_app(app_id, False) for app_id in app_ids])
+
+        await gather(*[self.start_app(app) for app in apps if running.get(app.id, app.auto_start)])
+        return apps
 
 
 app_manager = AppManager()

@@ -14,10 +14,10 @@ class Echo(Application):
 
     arguments: "Echo.Arguments"
 
-    async def setup(self):
+    async def on_initialize(self):
         self.application.add_handler(MessageHandler(filters.TEXT, self.echo))
 
-    async def echo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def echo(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
         if update.message:
             await update.message.reply_markdown_v2(update.message.text_markdown_v2_urled)
 

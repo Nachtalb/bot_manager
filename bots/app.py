@@ -45,13 +45,13 @@ async def get_index():
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    await app_manager.destroy_all()
+    await app_manager.destroy_apps()
 
 
 @app.on_event("startup")
 async def on_startup():
-    apps = await app_manager.load_all()
-    for task in asyncio.as_completed([app.start() for app in apps if app.auto_start]):
+    apps = await app_manager.initialize_apps(await app_manager.load_apps())
+    for task in asyncio.as_completed([app_manager.start_app(app) for app in apps if app.auto_start]):
         app = await task
         entry = LogEntry(text=f"{app.name} auto started", status="success", timestamp=int(time.time()))
         logger.info(entry["text"])
@@ -81,7 +81,7 @@ class ServerNamespace(Namespace):
         await self.emit_success("connect", "Connection established")
 
     async def on_shutdown(self, _: str):
-        await app_manager.destroy_all()
+        await app_manager.destroy_apps()
         await self.emit_success("shutdown", "Stopped all apps and shutting down now...")
         os.kill(os.getpid(), signal.SIGINT)
 

@@ -20,21 +20,15 @@
           </button>
         </div>
         <div class="col-auto">
-          <button id="restart-all" class="btn btn-primary" onclick="apiSocket.emit('apps_restart')">
-            <i class="bi bi-arrow-clockwise"></i>
-            Restart All Bots
-          </button>
-        </div>
-        <div class="col-auto">
           <button id="reload-config" class="btn btn-info" onclick="apiSocket.emit('apps_reload')">
             <i class="bi bi-arrow-repeat"></i>
             Reload Config
           </button>
         </div>
         <div class="col-auto">
-          <button id="stop-all" class="btn btn-warning" onclick="apiSocket.emit('apps_stop')">
-            <i class="bi bi-stop"></i>
-            Stop All Bots
+          <button id="pause-all" class="btn btn-warning" onclick="apiSocket.emit('apps_pause')">
+            <i class="bi bi-pause"></i>
+            Pause All Bots
           </button>
         </div>
         <div class="col-auto">
@@ -54,7 +48,7 @@
                 <th>ID</th>
                 <th>Telegram</th>
                 <th>Telegram Token</th>
-                <th>Running</th>
+                <th>Started</th>
                 <th>Actions</th>
               </tr>
             </thead>

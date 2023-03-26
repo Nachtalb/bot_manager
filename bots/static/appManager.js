@@ -44,7 +44,7 @@ export default class AppManager {
           <a href="${app.bot.link}" target="_blank">@${app.bot.username}</a>
         </td>
         <td class="align-middle col-telegram-token">${app.telegram_token}</td>
-        <td class="align-middle col-running">${app.running ? "✅" : "❌"}</td>
+        <td class="align-middle col-started">${app.running ? "✅" : "❌"}</td>
         <td class="align-middle col-actions">
           <div class="d-flex g-3">
             <button
@@ -54,23 +54,18 @@ export default class AppManager {
               <i class="bi bi-play"></i> Start
             </button>
             <button
-              class="btn me-2 text-nowrap btn-primary action-restart-app"
-              onclick="apiSocket.emit('app_restart', {appId: '${app.id}'})">
-              <i class="bi bi-arrow-clockwise"></i> Restart
-            </button>
-            <button
               class="btn me-2 text-nowrap btn-info action-reload-app"
               onclick="apiSocket.emit('app_reload', {appId: '${app.id}'})">
               <i class="bi bi-arrow-repeat"></i> Reload
             </button>
             <button
               ${!app.running ? "disabled" : ""}
-              class="btn me-2 text-nowrap btn-warning action-stop-app"
-              onclick="apiSocket.emit('app_stop', {appId: '${app.id}'})">
-              <i class="bi bi-stop"></i> Stop
+              class="btn me-2 text-nowrap btn-warning action-pause-app"
+              onclick="apiSocket.emit('app_pause', {appId: '${app.id}'})">
+              <i class="bi bi-pause"></i> Pause
             </button>
             <button
-              class="btn text-nowrap btn-secondary action-stop-app"
+              class="btn text-nowrap btn-secondary action-pause-app"
               data-bs-toggle="modal"
               data-bs-target="#editAppConfigModal"
               data-bs-app-id="${app.id}">

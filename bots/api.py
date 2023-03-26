@@ -14,7 +14,7 @@ class ApiNamespace(Namespace):
     namespace = "/api"
 
     async def app_info(self, app: _base.Application) -> JsonSerialisableData:
-        bot = await app.get_me()
+        bot = await app.get_bot()
         bot_dict = bot.to_dict()
         bot_dict["link"] = bot.link
 
@@ -29,6 +29,7 @@ class ApiNamespace(Namespace):
             {
                 "id": app.id,
                 "telegram_token": app.config.telegram_token,
+                "initialized": app.initialized,
                 "running": app.running,
                 "bot": bot_dict,
                 "type": type,
@@ -59,24 +60,19 @@ class ApiNamespace(Namespace):
 
     async def on_apps_reload(self, _: str):
         async with sync_lock:
-            await app_manager.reload_all()
+            await app_manager.reload_apps()
 
         await self.emit_success("apps_reload", "Apps reloaded", {"apps_update": await self.apps_info()})
 
-    async def on_apps_restart(self, _: str):
-        async with sync_lock:
-            await app_manager.restart_all()
-        await self.emit_success("apps_restart", "Apps restarted", {"apps_update": await self.apps_info()})
-
     async def on_apps_start(self, _: str):
         async with sync_lock:
-            await app_manager.start_all()
+            await app_manager.start_apps()
         await self.emit_success("apps_start", "Apps started", {"apps_update": await self.apps_info()})
 
-    async def on_apps_stop(self, _: str):
+    async def on_apps_pause(self, _: str):
         async with sync_lock:
-            await app_manager.stop_all()
-        await self.emit_success("apps_stop", "Apps stopped", {"apps_update": await self.apps_info()})
+            await app_manager.pause_apps()
+        await self.emit_success("apps_pause", "Apps paused", {"apps_update": await self.apps_info()})
 
     # ==================
     # ACTIONS SINGLE APP
@@ -93,19 +89,9 @@ class ApiNamespace(Namespace):
             return
 
         async with sync_lock:
-            app = await app.reload()
+            app = await app_manager.reload_app(app.id)
 
         await self.emit_success("app_reload", f"App {app.id} reloaded", {"app_update": await self.app_info(app)})
-
-    async def on_app_restart(self, sid: str, data: dict):
-        app = await self.get_app_or_send_error("app_restart", sid, data.get("appId"))
-        if not app:
-            return
-
-        async with sync_lock:
-            await app.restart()
-
-        await self.emit_success("app_restart", f"App {app.id} restarted", {"app_update": await self.app_info(app)})
 
     async def on_app_start(self, sid: str, data: dict):
         app = await self.get_app_or_send_error("app_start", sid, data.get("appId"))
@@ -113,19 +99,19 @@ class ApiNamespace(Namespace):
             return
 
         async with sync_lock:
-            await app.start()
+            await app_manager.start_app(app)
 
         await self.emit_success("app_start", f"App {app.id} started", {"app_update": await self.app_info(app)})
 
-    async def on_app_stop(self, sid: str, data: dict):
-        app = await self.get_app_or_send_error("app_stop", sid, data.get("appId"))
+    async def on_app_pause(self, sid: str, data: dict):
+        app = await self.get_app_or_send_error("app_pause", sid, data.get("appId"))
         if not app:
             return
 
         async with sync_lock:
-            await app.stop()
+            await app_manager.pause_app(app)
 
-        await self.emit_success("app_stop", f"App {app.id} stopped", {"app_update": await self.app_info(app)})
+        await self.emit_success("app_pause", f"App {app.id} paused", {"app_update": await self.app_info(app)})
 
     async def on_app_edit(self, sid: str, data: dict):
         app_id = data.get("appId")
@@ -155,7 +141,7 @@ class ApiNamespace(Namespace):
 
             Path("config.json").write_text(config.json(ensure_ascii=False, sort_keys=True, indent=2))
 
-            app = await app.reload()
+            app = await app_manager.reload_app(app.id)
 
         await self.emit_success(
             "app_edit",

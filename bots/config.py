@@ -52,5 +52,17 @@ class Config(BaseModel):
                 return True
         return False
 
+    def reload_app_config(self, app_id: str) -> ApplicationConfig:
+        new_app_config = Config.parse_file(CONFIG_FILE).app_config(app_id)
+        if not new_app_config:
+            raise ValueError(f"No app config with the ID {app_id} found")
+        config.set_app_config(new_app_config)
+        return new_app_config
+
+    def reload_config(self):
+        new_config = Config.parse_file(CONFIG_FILE)
+        for field, value in new_config:
+            setattr(self, field, value)
+
 
 config = Config.parse_file(CONFIG_FILE)
