@@ -60,8 +60,11 @@ class Application:
 
     async def setup(self):
         """Run as immediately after all applications have been loaded"""
-        if hasattr(self, "handle_error"):
-            self.application.add_error_handler(self.handle_error)  # pyright: ignore[reportGeneralTypeIssues]
+        if not self.running:
+            if hasattr(self, "handle_error"):
+                self.application.add_error_handler(self.handle_error)  # pyright: ignore[reportGeneralTypeIssues]
+
+            await self.application.initialize()
 
     async def startup(self):
         """Run after the bot has been initialized and started"""
@@ -73,7 +76,7 @@ class Application:
 
     async def teardown(self):
         """Run before the manager is stopped (eg. due to a config reload or CTRL-C)"""
-        pass
+        await self.application.shutdown()
 
     # =======
     # ACTIONS
@@ -88,9 +91,8 @@ class Application:
 
     async def start(self) -> "Application":
         if not self.running:
-            await self.application.initialize()
             await self.application.start()
-            await self.application.updater.start_polling()
+            await self.application.updater.start_polling()  # pyright: ignore[reportOptionalMemberAccess]
 
             self.running = True
 
@@ -104,9 +106,8 @@ class Application:
         if self.running:
             await self.shutdown()
 
-            await self.application.updater.stop()
+            await self.application.updater.stop()  # pyright: ignore[reportOptionalMemberAccess]
             await self.application.stop()
-            await self.application.shutdown()
 
             self.running = False
             self.logger.info("Stopped")
