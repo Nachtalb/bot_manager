@@ -10,7 +10,7 @@ from bots.config import ApplicationConfig
 from bots.config import config as global_config
 
 if TYPE_CHECKING:
-    from . import AppManager
+    from .manager import AppManager
 
 
 class AppStatus(BaseModel):
