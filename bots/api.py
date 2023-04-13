@@ -36,7 +36,7 @@ class ApiNamespace(Namespace):
                 "config": config,
                 "fields": {
                     name: {
-                        "type": field.type_.__name__,
+                        "type": getattr(field.type_, "__name__", repr(field.type_).replace("|", "or")),
                         "help": field.field_info.description,
                         "default": field.get_default(),
                         "current": config.get(field.name, field.get_default()),
