@@ -1,11 +1,25 @@
 [tool.poetry]
 name = "bot_manager"
-version = "0.1.0"
+version = "0.1.0a0"
 description = ""
 authors = ["Nachtalb <na@nachtalb.io>"]
 readme = "README.md"
 packages = [{ include = "bots" }]
 include = ["static/**/*", "public/**/*"]
+keywords = ["telegram", "async", "python-telegram-bot"]
+classifiers = [
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Framework :: AsyncIO",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+  "Typing :: Typed",
+]
+homepage = "https://github.com/Nachtalb/bot_manager"
+
 
 [tool.poetry.dependencies]
 python = "^3.11.0"
@@ -18,16 +32,33 @@ fastapi-socketio = "^0.0.10"
 
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.13"
-ipython = { extras = ["black"], version = "^8.11.0" }
-
-[tool.poetry.scripts]
-start-bots = "bots.__main__:main"
+ipython = {extras = ["black"], version = "^8.14.0"}
+pre-commit = "^3.3.3"
+ruff = "^0.0.278"
+mypy = "^1.4.1"
+isort = "^5.12.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry.scripts]
+start-bots = "bots.__main__:main"
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
 [tool.black]
 line-length = 120
-target-version = ['py311']
 preview = true
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.mypy]
+python_version = "3.11"
+show_error_codes = true
+pretty = true
+strict = true
