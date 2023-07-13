@@ -65,18 +65,18 @@ your application.
 
 ```python
 class MyApplication(ApplicationWrapper):
-    async def setup(self):
+    async def setup(self) -> None:
         self.application.add_handler(MessageHandler(filters.TEXT, self.echo))
 
-    async def echo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def echo(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.message:
             await update.message.reply_markdown_v2(update.message.text_markdown_v2_urled)
 ```
 
 ### Custom Config
 
-Maybe you want to run multiple telegram bots of the same type to decrease
-rate limits in channels or something alike. So you need a way to pass custom
+Maybe you want to run multiple telegram bots of the same type to decrease rate
+limits in channels or something alike. So you need a way to pass custom
 arguments to your bot. You can do so by defining "Arguments".
 
 First add your arguments to the class:
@@ -92,13 +92,13 @@ class MyApplication(ApplicationWrapper):
 
     arguments: "MyApplication.Arguments"  # Make sure type hinting works
 
-    async def setup(self):
+    async def setup(self) -> None:
         ...
         do_stuff_with(self.arguments.custom_arg_1, self.arguments.custom_arg_2)
 ```
 
-Then add the arguments to your `config.json`. In this example I now create
-two bots of the same kind with different arguments (also make sure the `id` is
+Then add the arguments to your `config.json`. In this example I now create two
+bots of the same kind with different arguments (also make sure the `id` is
 unique):
 
 ```json
@@ -132,5 +132,5 @@ unique):
 
 ## Usage
 
-After you have started the manager with `poetry run start-bots` you can open
-the shown url `https://localhost:8000` and manage your bots.
+After you have started the manager with `poetry run start-bots` you can open the
+shown url `https://localhost:8000` and manage your bots.

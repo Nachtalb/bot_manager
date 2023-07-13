@@ -3,7 +3,7 @@ import uvicorn
 from bots.config import config
 
 
-def main():
+def main() -> None:
     uvicorn.run(
         "bots.app:app",
         host=config.host,

@@ -3,12 +3,12 @@ import functools
 import inspect
 import logging
 import re
-from typing import AsyncIterable, AsyncIterator, TypeVar
+from typing import Any, AsyncIterable, AsyncIterator, Awaitable, Callable, TypeVar
 
 logger = logging.getLogger("bot_manager")
 
 
-def get_arg_value(arg_name, func, args, kwargs):
+def get_arg_value(arg_name: str, func: Callable[..., Any], args: Any, kwargs: dict[str, Any]) -> Any:
     if arg_name in kwargs:
         return kwargs[arg_name]
 
@@ -30,14 +30,14 @@ async def async_throttled_iterator(async_iterator: AsyncIterable[T], delay: floa
     item_available = asyncio.Event()
     iterator_exhausted = asyncio.Event()
 
-    async def consume_items():
+    async def consume_items() -> None:
         nonlocal last_item
         async for item in async_iterator:
             last_item = item
             item_available.set()
         iterator_exhausted.set()
 
-    async def produce_items():
+    async def produce_items() -> AsyncIterator[Any]:
         while not iterator_exhausted.is_set() or item_available.is_set():
             await item_available.wait()
             item_available.clear()
@@ -45,7 +45,7 @@ async def async_throttled_iterator(async_iterator: AsyncIterable[T], delay: floa
             if not iterator_exhausted.is_set():
                 await asyncio.sleep(delay)
 
-    async def cleanup(task):
+    async def cleanup(task: asyncio.Task[Any]) -> None:
         try:
             await task
         except asyncio.CancelledError:
@@ -74,9 +74,9 @@ def stabelise_string(text: str, entity_type: str = "") -> str:
     return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", text)
 
 
-def safe_error(func):
+def safe_error(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await func(*args, **kwargs)
         except (Exception, BaseException) as error:

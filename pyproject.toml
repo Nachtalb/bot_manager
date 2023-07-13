@@ -32,7 +32,7 @@ fastapi-socketio = "^0.0.10"
 
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.13"
-ipython = {extras = ["black"], version = "^8.14.0"}
+ipython = { extras = ["black"], version = "^8.14.0" }
 pre-commit = "^3.3.3"
 ruff = "^0.0.278"
 mypy = "^1.4.1"
@@ -62,3 +62,12 @@ python_version = "3.11"
 show_error_codes = true
 pretty = true
 strict = true
+disallow_subclassing_any = false
+
+[[tool.mypy.overrides]]
+module = "socketio.*"
+ignore_missing_imports = "True"
+
+[[tool.mypy.overrides]]
+module = "fastapi_socketio.*"
+ignore_missing_imports = "True"

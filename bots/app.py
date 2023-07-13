@@ -1,8 +1,10 @@
 import asyncio
+import importlib.resources
 import logging
 import os
 import signal
 import time
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
@@ -14,7 +16,6 @@ from bots.applications import app_manager
 from bots.config import config
 from bots.log import LogEntry, SocketLogHandler, runtime_logs
 from bots.utils import Namespace
-import importlib.resources
 
 HERE = importlib.resources.files("bots")
 
@@ -41,17 +42,17 @@ app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
-async def get_index():
+async def get_index() -> str:
     return (HERE / "public/index.html").read_text()
 
 
 @app.on_event("shutdown")
-async def on_shutdown():
+async def on_shutdown() -> None:
     await app_manager.destroy_apps()
 
 
 @app.on_event("startup")
-async def on_startup():
+async def on_startup() -> None:
     apps = await app_manager.initialize_apps(await app_manager.load_apps())
     for task in asyncio.as_completed([app_manager.start_app(app) for app in apps if app.auto_start]):
         app = await task
@@ -63,30 +64,30 @@ async def on_startup():
 class ServerNamespace(Namespace):
     namespace = "/server"
 
-    def __init__(self, log_queue: asyncio.Queue, namespace=None):
+    def __init__(self, log_queue: asyncio.Queue[dict[str, Any]], namespace: str | None = None) -> None:
         super().__init__(namespace)
 
         self.log_queue = log_queue
         self.log_emitter = asyncio.create_task(self.log_emitter_loop())
 
-    async def log_emitter_loop(self):
+    async def log_emitter_loop(self) -> None:
         try:
             while True:
-                item: dict = await self.log_queue.get()
+                item: dict[str, Any] = await self.log_queue.get()
                 await self.emit_default("log", **item)
                 self.log_queue.task_done()
         except asyncio.CancelledError:
             pass
 
-    async def on_connect(self, sid: str, environ: dict) -> None:
+    async def on_connect(self, sid: str, environ: dict[str, str]) -> None:
         await super().on_connect(sid, environ)
         await self.emit_success("connect", "Connection established")
 
-    async def on_shutdown(self, _: str):
+    async def on_shutdown(self, _: str) -> None:
         await app_manager.destroy_apps()
         await self.emit_success("shutdown", "Stopped all apps and shutting down now...")
         os.kill(os.getpid(), signal.SIGINT)
 
 
-app.sio.register_namespace(ServerNamespace(socket_log_handler.queue))  # pyright: ignore[reportGeneralTypeIssues]
-app.sio.register_namespace(ApiNamespace())  # pyright: ignore[reportGeneralTypeIssues]
+app.sio.register_namespace(ServerNamespace(socket_log_handler.queue))  # type: ignore[attr-defined]
+app.sio.register_namespace(ApiNamespace())  # type: ignore[attr-defined]

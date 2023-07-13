@@ -17,7 +17,7 @@ logger.setLevel(config.local_log_level)
 class AppManager:
     bot_endpoint_prefix = "/bot"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._modules: dict[str, ModuleType] = {}
         self.apps: dict[str, Application] = {}
 
@@ -43,11 +43,11 @@ class AppManager:
         module_path, module = self._load_module(module_full_path)
 
         try:
-            return getattr(module, name)
+            return getattr(module, name)  # type: ignore[no-any-return]
         except AttributeError:
             raise ImportError(f"Cannot import name '{name}' from '{module}'", name=module_path, path=module.__file__)
 
-    def set_server(self, server: FastAPI):
+    def set_server(self, server: FastAPI) -> None:
         self.server = server
 
     def app_namespace_prefix(self, app: Application) -> str:
@@ -64,7 +64,7 @@ class AppManager:
         creates and app instance.
         """
         if app_id in self.apps:
-            raise ValueError(f"Application already loaded")
+            raise ValueError("Application already loaded")
 
         app_config = config.app_config(app_id)
         if not app_config:

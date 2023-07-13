@@ -2,7 +2,7 @@ import functools
 import logging
 import time
 from asyncio import Queue
-from typing import TypedDict
+from typing import Any, Callable, TypedDict
 
 from bots.config import config
 from bots.utils.misc import get_arg_value
@@ -30,10 +30,10 @@ logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 
 class SocketLogHandler(logging.Handler):
-    def __init__(self, level=logging.NOTSET) -> None:
+    def __init__(self, level: int = logging.NOTSET) -> None:
         super().__init__(level)
 
-        self.queue = Queue()
+        self.queue = Queue[dict[str, Any]]()
 
     def emit(self, record: logging.LogRecord) -> None:
         status = (
@@ -52,10 +52,10 @@ class SocketLogHandler(logging.Handler):
         )
 
 
-def log(arg_names: list[str] = [], ignore_incoming: bool = False):
-    def decorator_log(func):
+def log(arg_names: list[str] = [], ignore_incoming: bool = False) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def decorator_log(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Get the function name
             func_name = func.__name__
 

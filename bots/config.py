@@ -1,9 +1,10 @@
+import logging
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
-import logging
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = Path("config.json")
 
 
 class ApplicationConfig(BaseModel):
@@ -29,21 +30,22 @@ class Config(BaseModel):
         return logging._nameToLevel[level.upper()]
 
     @property
-    def global_log_level_int(self):
+    def global_log_level_int(self) -> int:
         return self._log_level_int(self.global_log_level)
 
     @property
-    def local_log_level_int(self):
+    def local_log_level_int(self) -> int:
         return self._log_level_int(self.local_log_level)
 
     @property
-    def web_log_level_int(self):
+    def web_log_level_int(self) -> int:
         return self._log_level_int(self.web_log_level)
 
     def app_config(self, id: str) -> ApplicationConfig | None:
         for app_config in self.app_configs:
             if app_config.id == id:
                 return app_config
+        return None
 
     def set_app_config(self, app: ApplicationConfig) -> bool:
         for index, app_config in enumerate(self.app_configs[:]):
@@ -53,14 +55,14 @@ class Config(BaseModel):
         return False
 
     def reload_app_config(self, app_id: str) -> ApplicationConfig:
-        new_app_config = Config.parse_file(CONFIG_FILE).app_config(app_id)
+        new_app_config = Config.model_validate_json(CONFIG_FILE.read_text()).app_config(app_id)
         if not new_app_config:
             raise ValueError(f"No app config with the ID {app_id} found")
         config.set_app_config(new_app_config)
         return new_app_config
 
-    def reload_config(self):
-        new_config = Config.parse_file(CONFIG_FILE)
+    def reload_config(self) -> None:
+        new_config = Config.model_validate_json(CONFIG_FILE.read_text())
         for field, value in new_config:
             setattr(self, field, value)
 

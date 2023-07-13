@@ -1,10 +1,10 @@
 import logging
 from typing import TYPE_CHECKING
 
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from telegram import User
 from telegram.ext import ApplicationBuilder
-from fastapi import APIRouter
 
 from bots.config import ApplicationConfig
 from bots.config import config as global_config
@@ -36,10 +36,10 @@ class Application:
         telegram_token: str
         auto_start: bool = False
 
-    def __init__(self, manager: "AppManager", config: ApplicationConfig):
+    def __init__(self, manager: "AppManager", config: ApplicationConfig) -> None:
         self.manager = manager
-        self.config = self.Config.parse_obj(config)
-        self.arguments = self.Arguments.parse_obj(config.arguments)
+        self.config = self.Config.model_validate(config.model_dump())
+        self.arguments = self.Arguments.model_validate(config.arguments)
 
         self.logger = logging.getLogger(self.id)
         self.logger.setLevel(global_config.local_log_level_int)
@@ -54,17 +54,17 @@ class Application:
         self.application = ApplicationBuilder().token(self.config.telegram_token).build()
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self.config.id
 
     @property
-    def auto_start(self):
+    def auto_start(self) -> bool:
         return self.config.auto_start
 
     async def get_bot(self) -> User:
         if not self.application.bot._bot_user:
             await self.application.bot.get_me()
-        return self.application.bot._bot_user  # pyright: ignore[reportGeneralTypeIssues]
+        return self.application.bot._bot_user  # type: ignore[return-value]
 
     async def refresh_bot(self) -> User:
         return await self.application.bot.get_me()
@@ -73,7 +73,7 @@ class Application:
     # LIFECYCLE
     # =========
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialise the application
 
         This is the first method called after creating an application.
@@ -97,8 +97,8 @@ class Application:
         """
         if not self.initialized:
             self.add_routes()
-            if hasattr(self, "handle_error"):
-                self.application.add_error_handler(self.handle_error)  # pyright: ignore[reportGeneralTypeIssues]
+            if error_handler := getattr(self, "handle_error", None):
+                self.application.add_error_handler(error_handler)
 
             await self.application.initialize()
             self.initialized = True
@@ -109,7 +109,7 @@ class Application:
 
         await self.on_initialize()
 
-    async def on_initialize(self):
+    async def on_initialize(self) -> None:
         """Called after app has been initialized
 
         Overwrite this method instead of initialize. You can add handlers
@@ -145,7 +145,9 @@ class Application:
         """
         if not self.running:
             await self.application.start()
-            await self.application.updater.start_polling()  # pyright: ignore[reportOptionalMemberAccess]
+            if not self.application.updater:
+                raise RuntimeError("Trying to start bot before initialisation")
+            await self.application.updater.start_polling()
 
             self.running = True
 
@@ -157,7 +159,7 @@ class Application:
         await self.on_start()
         return self
 
-    async def on_start(self):
+    async def on_start(self) -> None:
         """Run after the app has been started
 
         After the app has been started (receiving updates from Telegram),
@@ -175,7 +177,7 @@ class Application:
         """
         pass
 
-    async def on_pause(self):
+    async def on_pause(self) -> None:
         """Run before we pause the app
 
         Before the app has will be paused (stop receiving updates from Telegram),
@@ -197,7 +199,7 @@ class Application:
         """
         pass
 
-    async def pause(self):
+    async def pause(self) -> None:
         """Pause the application
 
         Waits for running tasks to finish then stops receiving updates from
@@ -217,7 +219,9 @@ class Application:
         await self.on_pause()
 
         if self.running:
-            await self.application.updater.stop()  # pyright: ignore[reportOptionalMemberAccess]
+            if not self.application.updater:
+                raise RuntimeError("Trying to pause bot while it hasn't been initialised")
+            await self.application.updater.stop()
             await self.application.stop()
 
             self.running = False
@@ -225,7 +229,7 @@ class Application:
         else:
             self.logger.debug("Already paused")
 
-    async def on_shutdown(self):
+    async def on_shutdown(self) -> None:
         """Right before the app is shut down
 
         Override this instead of shutdown. Here you can save any in memory data,
@@ -243,7 +247,7 @@ class Application:
         """
         pass
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Shutdown the application
 
         Shuts down ("uninitialize") the application.
@@ -286,7 +290,7 @@ class Application:
     # ROUTES
     # ======
 
-    def add_routes(self):
+    def add_routes(self) -> None:
         self.router.add_api_route(
             "/status",
             methods=["GET"],
@@ -295,12 +299,12 @@ class Application:
 
     async def status(self) -> AppStatus:
         """The current status of the application with the most important info"""
-        bot = await self.get_bot()
+        bot: User = await self.get_bot()
         return AppStatus(
             id=self.id,
             initialized=self.initialized,
             running=self.running,
-            tg_link=bot.link,  # pyright: ignore[reportGeneralTypeIssues]
+            tg_link=bot.link,  # type: ignore[arg-type]
             tg_name=bot.name,
             tg_id=bot.id,
         )
