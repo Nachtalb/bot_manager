@@ -27,7 +27,7 @@ python-telegram-bot = { extras = ["job-queue"], version = "^20.4" }
 aiohttp = { extras = ["speedups"], version = "^3.8.4" }
 fastapi = "^0.100.0"
 uvicorn = { extras = ["standard"], version = "^0.21.1" }
-pydantic = "^2.0.2"
+pydantic = "^2.3.0"
 fastapi-socketio = "^0.0.10"
 
 [tool.poetry.group.dev.dependencies]
