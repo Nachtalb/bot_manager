@@ -34,7 +34,7 @@ fastapi-socketio = "^0.0.10"
 ipdb = "^0.13.13"
 ipython = { extras = ["black"], version = "^8.14.0" }
 pre-commit = "^3.3.3"
-ruff = "^0.0.278"
+ruff = "^0.0.286"
 mypy = "^1.4.1"
 isort = "^5.12.0"
 
