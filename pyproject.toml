@@ -24,7 +24,7 @@ homepage = "https://github.com/Nachtalb/bot_manager"
 [tool.poetry.dependencies]
 python = "^3.11.0"
 python-telegram-bot = { extras = ["job-queue"], version = "^20.4" }
-aiohttp = { extras = ["speedups"], version = "^3.8.4" }
+aiohttp = { extras = ["speedups"], version = "^3.8.6" }
 fastapi = "^0.100.0"
 uvicorn = { extras = ["standard"], version = "^0.21.1" }
 pydantic = "^2.0.2"
